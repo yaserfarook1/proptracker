@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prop Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080C10;
+  --surface:#0D1318;
+  --surface2:#111920;
+  --border:#1E2D35;
+  --border2:#243540;
+  --text:#E8F4F0;
+  --muted:#5A7A80;
+  --accent:#00FFB2;
+  --accent2:#00C8FF;
+  --gold:#FFB800;
+  --red:#FF4560;
+  --green:#00E396;
+  --orange:#FF6B35;
+  --purple:#8B5CF6;
+  --font-head:'Syne',sans-serif;
+  --font-mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-head);min-height:100vh;overflow-x:hidden}
+
+/* Grid noise overlay */
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 20% 20%,rgba(0,255,178,0.03) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(0,200,255,0.03) 0%,transparent 50%);pointer-events:none;z-index:0}
+
+.container{max-width:1280px;margin:0 auto;padding:0 2rem;position:relative;z-index:1}
+
+/* ── HEADER ── */
+header{padding:2rem 0 1.5rem;border-bottom:1px solid var(--border)}
+.header-inner{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.logo{display:flex;flex-direction:column;gap:2px}
+.logo-main{font-size:1.6rem;font-weight:800;letter-spacing:-0.03em;color:var(--text)}
+.logo-main span{color:var(--accent)}
+.logo-sub{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:0.08em}
+.header-meta{display:flex;gap:12px;align-items:center}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,255,178,0.4)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(0,255,178,0)}}
+.live-text{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+
+/* ── GOAL BAR ── */
+.goal-section{padding:1.5rem 0;border-bottom:1px solid var(--border)}
+.goal-label{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.08em;margin-bottom:.75rem;display:flex;justify-content:space-between}
+.goal-track{height:6px;background:var(--surface2);border-radius:3px;overflow:visible;position:relative}
+.goal-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);position:relative;min-width:6px}
+.goal-fill::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);width:12px;height:12px;border-radius:50%;background:var(--accent2);border:2px solid var(--bg);box-shadow:0 0 8px var(--accent2)}
+.goal-milestones{display:flex;justify-content:space-between;margin-top:.5rem}
+.milestone{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:1.5rem 0}
+.kpi{background:var(--surface);padding:1.25rem 1rem;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--border))}
+.kpi-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;margin-bottom:.5rem}
+.kpi-val{font-size:1.75rem;font-weight:800;letter-spacing:-.03em;color:var(--text);line-height:1}
+.kpi-val.green{color:var(--green)}
+.kpi-val.red{color:var(--red)}
+.kpi-val.gold{color:var(--gold)}
+.kpi-val.blue{color:var(--accent2)}
+.kpi-val.accent{color:var(--accent)}
+.kpi-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px}
+
+/* ── SECTION LAYOUT ── */
+.section{margin:2rem 0}
+.section-head{display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem}
+.section-num{font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(0,255,178,.08);border:1px solid rgba(0,255,178,.2);border-radius:4px;padding:2px 8px;letter-spacing:.06em}
+.section-title{font-size:1.1rem;font-weight:700;letter-spacing:-.02em}
+
+/* ── ADD FORM ── */
+.add-form{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em}
+.form-group select,.form-group input{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:7px 10px;height:34px;outline:none;transition:border-color .2s}
+.form-group select:focus,.form-group input:focus{border-color:var(--accent)}
+.form-group input{width:110px}
+.btn-add{background:var(--accent);color:#000;font-family:var(--font-head);font-size:13px;font-weight:700;border:none;border-radius:6px;padding:0 18px;height:34px;cursor:pointer;letter-spacing:-.01em;transition:opacity .2s;white-space:nowrap}
+.btn-add:hover{opacity:.85}
+
+/* ── TABLE ── */
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2)}
+td{padding:11px 14px;border-bottom:1px solid rgba(30,45,53,.7);vertical-align:middle;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.01)}
+
+.badge{display:inline-block;font-family:var(--font-mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.04em}
+.b-eval{background:rgba(0,200,255,.1);color:var(--accent2);border:1px solid rgba(0,200,255,.2)}
+.b-funded{background:rgba(255,184,0,.1);color:var(--gold);border:1px solid rgba(255,184,0,.2)}
+.b-paid{background:rgba(0,227,150,.1);color:var(--green);border:1px solid rgba(0,227,150,.2)}
+.b-blown{background:rgba(255,69,96,.1);color:var(--red);border:1px solid rgba(255,69,96,.2)}
+
+.status-sel{background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:4px 6px;outline:none;cursor:pointer}
+.payout-inp{background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:4px 7px;width:80px;outline:none}
+.payout-inp:focus{border-color:var(--accent)}
+.btn-pay{background:rgba(0,255,178,.1);border:1px solid rgba(0,255,178,.25);color:var(--accent);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;transition:background .2s}
+.btn-pay:hover{background:rgba(0,255,178,.2)}
+.btn-del{background:rgba(255,69,96,.08);border:1px solid rgba(255,69,96,.2);color:var(--red);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer}
+.btn-del:hover{background:rgba(255,69,96,.15)}
+.net-pos{color:var(--green);font-weight:700;font-family:var(--font-mono);font-size:12px}
+.net-neg{color:var(--red);font-weight:700;font-family:var(--font-mono);font-size:12px}
+.empty-row td{text-align:center;padding:3rem;color:var(--muted);font-family:var(--font-mono);font-size:12px}
+
+/* ── CHARTS GRID ── */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.charts-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:1px}
+.chart-box{background:var(--surface);padding:1.25rem}
+.chart-box.full{grid-column:1/-1}
+.chart-box-title{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.07em;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
+.chart-box-title span{color:var(--text);font-size:12px;font-family:var(--font-head);font-weight:600}
+canvas{max-height:220px}
+.chart-full canvas{max-height:180px}
+
+/* ── STATS ROW ── */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:1px}
+.stat-cell{background:var(--surface);padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center}
+.stat-cell .sk{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.stat-cell .sv{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text)}
+
+/* ── PAYOUT LOG ── */
+.payout-history{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.payout-log-item{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1.25rem;border-bottom:1px solid rgba(30,45,53,.7);font-size:12px}
+.payout-log-item:last-child{border-bottom:none}
+.plog-left{display:flex;flex-direction:column;gap:2px}
+.plog-acct{font-weight:600;color:var(--text)}
+.plog-date{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.plog-amt{font-family:var(--font-mono);font-weight:700;color:var(--green);font-size:13px}
+
+/* ── ANALYSIS CARDS ── */
+.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:1.5rem}
+.analysis-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.analysis-card h4{font-size:.85rem;font-weight:700;margin-bottom:1rem;color:var(--text);display:flex;align-items:center;gap:.5rem}
+.analysis-card h4::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--accent)}
+.analysis-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(30,45,53,.5);font-size:12px}
+.analysis-row:last-child{border-bottom:none}
+.analysis-row .ak{color:var(--muted);font-family:var(--font-mono);font-size:11px}
+.analysis-row .av{font-family:var(--font-mono);font-weight:700;color:var(--text)}
+.av.g{color:var(--green)}
+.av.r{color:var(--red)}
+.av.a{color:var(--gold)}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);padding:1.5rem 0;margin-top:3rem}
+.footer-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
+.footer-left{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.footer-right{font-family:var(--font-mono);font-size:10px;color:var(--muted);display:flex;gap:16px}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+@media(max-width:700px){
+  .charts-grid,.charts-grid-3,.analysis-grid{grid-template-columns:1fr}
+  .chart-box.full{grid-column:1}
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-main">PROP <span>TRACKER</span></div>
+      <div class="logo-sub">CHALLENGE ANALYTICS DASHBOARD · LUCIDFLEX</div>
+    </div>
+    <div class="header-meta">
+      <div class="live-dot"></div>
+      <div class="live-text" id="live-date">—</div>
+    </div>
+  </div>
+</header>
+
+<!-- GOAL BAR -->
+<div class="goal-section">
+  <div class="goal-label">
+    <span>PROGRESS TO $20,000 GOAL</span>
+    <span id="goal-pct">0%</span>
+  </div>
+  <div class="goal-track">
+    <div class="goal-fill" id="goal-fill" style="width:0%"></div>
+  </div>
+  <div class="goal-milestones">
+    <span class="milestone">$0</span>
+    <span class="milestone">$5K</span>
+    <span class="milestone">$10K</span>
+    <span class="milestone">$15K</span>
+    <span class="milestone">$20K</span>
+  </div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-grid" id="kpi-grid">
+  <div class="kpi" style="--kpi-color:var(--accent2)"><div class="kpi-label">ACCOUNTS</div><div class="kpi-val blue" id="k-total">0</div></div>
+  <div class="kpi" style="--kpi-color:var(--gold)"><div class="kpi-label">IN EVAL</div><div class="kpi-val gold" id="k-eval">0</div></div>
+  <div class="kpi" style="--kpi-color:var(--orange)"><div class="kpi-label">FUNDED</div><div class="kpi-val" style="color:var(--orange)" id="k-funded">0</div></div>
+  <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">PAID OUT</div><div class="kpi-val green" id="k-paid">0</div></div>
+  <div class="kpi" style="--kpi-color:var(--red)"><div class="kpi-label">BLOWN</div><div class="kpi-val red" id="k-blown">0</div></div>
+  <div class="kpi" style="--kpi-color:var(--red)"><div class="kpi-label">FEES PAID</div><div class="kpi-val red" id="k-fees">$0</div></div>
+  <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">TOTAL PAYOUTS</div><div class="kpi-val green" id="k-payouts">$0</div></div>
+  <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">NET P&L</div><div class="kpi-val accent" id="k-net">$0</div></div>
+  <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">ROI</div><div class="kpi-val" style="color:var(--purple)" id="k-roi">—</div></div>
+  <div class="kpi" style="--kpi-color:var(--accent2)"><div class="kpi-label">PASS RATE</div><div class="kpi-val blue" id="k-pass">—</div></div>
+</div>
+
+<!-- ADD ACCOUNT -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">01</div>
+    <div class="section-title">Add Challenge Account</div>
+  </div>
+  <div class="add-form">
+    <div class="form-group">
+      <label>PROP FIRM</label>
+      <div style="display:flex;gap:5px">
+        <select id="inp-firm" style="min-width:120px">
+          <option value="Lucid">Lucid</option>
+          <option value="MFF">MFF</option>
+          <option value="Topstep">Topstep</option>
+          <option value="Apex">Apex</option>
+          <option value="TradeDay">TradeDay</option>
+          <option value="__new__">+ Add new...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group" id="new-firm-group" style="display:none">
+      <label>NEW FIRM NAME</label>
+      <input type="text" id="inp-newfirm" placeholder="Firm name..." style="width:120px">
+    </div>
+    <div class="form-group">
+      <label>INSTRUMENT</label>
+      <select id="inp-inst">
+        <option value="GC">GC — Gold</option>
+        <option value="NQ">NQ — Nasdaq</option>
+        <option value="GC+NQ">GC + NQ</option>
+        <option value="ES">ES — S&P 500</option>
+        <option value="CL">CL — Crude Oil</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>ACCOUNT SIZE</label>
+      <select id="inp-size">
+        <option value="25000">25K</option>
+        <option value="50000">50K</option>
+        <option value="100000">100K</option>
+        <option value="150000">150K</option>
+        <option value="200000">200K</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>FEE PAID ($)</label>
+      <input type="number" id="inp-fee" value="175" min="0" step="1">
+    </div>
+    <div class="form-group">
+      <label>EVAL RISK/TRADE ($)</label>
+      <input type="number" id="inp-erisk" value="750" min="0" step="50">
+    </div>
+    <div class="form-group">
+      <label>FUNDED RISK/TRADE ($)</label>
+      <input type="number" id="inp-frisk" value="400" min="0" step="50">
+    </div>
+    <div class="form-group">
+      <label>NOTES</label>
+      <input type="text" id="inp-notes" placeholder="optional..." style="width:160px">
+    </div>
+    <button class="btn-add" onclick="addAccount()">+ ADD ACCOUNT</button>
+  </div>
+</div>
+
+<!-- ACCOUNT TABLE -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">02</div>
+    <div class="section-title">Account Log</div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>DATE</th>
+          <th>FIRM</th>
+          <th>INST</th>
+          <th>SIZE</th>
+          <th>EVAL RISK</th>
+          <th>FUND RISK</th>
+          <th>FEE</th>
+          <th>STATUS</th>
+          <th>ADD PAYOUT</th>
+          <th>TOTAL PAYOUTS</th>
+          <th>NET P&L</th>
+          <th>NOTES</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body">
+        <tr class="empty-row"><td colspan="14">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">03</div>
+    <div class="section-title">Visual Analytics</div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-box">
+      <div class="chart-box-title">ACCOUNT STATUS<span id="lbl-status">—</span></div>
+      <canvas id="chart-status"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="chart-box-title">CUMULATIVE P&L<span id="lbl-pnl">—</span></div>
+      <canvas id="chart-pnl"></canvas>
+    </div>
+    <div class="chart-box full chart-full">
+      <div class="chart-box-title">PAYOUT HISTORY — PER ACCOUNT<span id="lbl-paybar">—</span></div>
+      <canvas id="chart-paybar" style="max-height:160px"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-grid-3">
+    <div class="chart-box">
+      <div class="chart-box-title">FEES vs PAYOUTS<span></span></div>
+      <canvas id="chart-fvp"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="chart-box-title">PASS / BLOW RATE<span></span></div>
+      <canvas id="chart-rate"></canvas>
+    </div>
+    <div class="chart-box">
+      <div class="chart-box-title">GOAL PROGRESS<span></span></div>
+      <canvas id="chart-goal"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- STATS + ANALYSIS -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">04</div>
+    <div class="section-title">Deep Analysis</div>
+  </div>
+
+  <div class="stats-row" id="stats-row">
+    <div class="stat-cell"><span class="sk">PASS RATE</span><span class="sv" id="s-pass">—</span></div>
+    <div class="stat-cell"><span class="sk">BLOW RATE</span><span class="sv" id="s-blow">—</span></div>
+    <div class="stat-cell"><span class="sk">AVG PAYOUT SIZE</span><span class="sv" id="s-avgpay">—</span></div>
+    <div class="stat-cell"><span class="sk">TOTAL PAYOUT CYCLES</span><span class="sv" id="s-cycles">—</span></div>
+    <div class="stat-cell"><span class="sk">COST PER WIN</span><span class="sv" id="s-cpw">—</span></div>
+    <div class="stat-cell"><span class="sk">REMAINING TO $20K</span><span class="sv" id="s-rem">—</span></div>
+  </div>
+
+  <div class="analysis-grid">
+    <div class="analysis-card">
+      <h4>Fee Breakdown</h4>
+      <div id="analysis-fees"></div>
+    </div>
+    <div class="analysis-card">
+      <h4>Payout Log</h4>
+      <div id="analysis-payouts" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+    <div class="analysis-card">
+      <h4>Performance by Firm</h4>
+      <div id="analysis-inst"></div>
+    </div>
+    <div class="analysis-card">
+      <h4>Risk vs Return</h4>
+      <div id="analysis-risk"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-left">LUCIDFLEX 50K · MLL $2,000 · 90/10 SPLIT · 5 PAYOUTS TO LUCIDFIVE</div>
+      <div class="footer-right">
+        <span>MAX PAYOUT/REQUEST $2,000</span>
+        <span>MIN PAYOUT $500</span>
+        <span>5 PROFITABLE DAYS/CYCLE</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+const GOAL = 20000;
+let accounts = [];
+let charts = {};
+
+function loadData(){
+  try{const d=localStorage.getItem('lucid_v2');if(d)accounts=JSON.parse(d)}catch(e){}
+}
+function saveData(){
+  try{localStorage.setItem('lucid_v2',JSON.stringify(accounts))}catch(e){}
+}
+
+function addAccount(){
+  const firmSel=document.getElementById('inp-firm').value;
+  const firm=firmSel==='__new__'?(document.getElementById('inp-newfirm').value.trim()||'Unknown'):firmSel;
+  if(firmSel==='__new__'&&firm&&firm!=='Unknown'){
+    const sel=document.getElementById('inp-firm');
+    const exists=[...sel.options].some(o=>o.value===firm);
+    if(!exists){
+      const opt=new Option(firm,firm);
+      sel.insertBefore(opt,sel.options[sel.options.length-1]);
+      saveFirms();
+    }
+    sel.value=firm;
+    document.getElementById('new-firm-group').style.display='none';
+    document.getElementById('inp-newfirm').value='';
+  }
+  const inst=document.getElementById('inp-inst').value;
+  const size=parseInt(document.getElementById('inp-size').value);
+  const fee=parseFloat(document.getElementById('inp-fee').value)||175;
+  const erisk=parseFloat(document.getElementById('inp-erisk').value)||750;
+  const frisk=parseFloat(document.getElementById('inp-frisk').value)||400;
+  const notes=document.getElementById('inp-notes').value.trim();
+  accounts.push({
+    id:Date.now(),
+    date:new Date().toISOString().slice(0,10),
+    firm,inst,size,fee,erisk,frisk,notes,
+    status:'eval',
+    payouts:[]
+  });
+  saveData();render();
+}
+
+function saveFirms(){
+  const sel=document.getElementById('inp-firm');
+  const firms=[...sel.options].map(o=>o.value).filter(v=>v!=='__new__');
+  try{localStorage.setItem('prop_firms',JSON.stringify(firms))}catch(e){}
+}
+
+function loadFirms(){
+  try{
+    const d=localStorage.getItem('prop_firms');
+    if(d){
+      const firms=JSON.parse(d);
+      const sel=document.getElementById('inp-firm');
+      const defaults=['Lucid','MFF','Topstep','Apex','TradeDay'];
+      firms.forEach(f=>{
+        if(!defaults.includes(f)){
+          const opt=new Option(f,f);
+          sel.insertBefore(opt,sel.options[sel.options.length-1]);
+        }
+      });
+    }
+  }catch(e){}
+}
+
+document.getElementById('inp-firm').addEventListener('change',function(){
+  document.getElementById('new-firm-group').style.display=this.value==='__new__'?'flex':'none';
+});
+
+function setStatus(id,s){
+  const a=accounts.find(x=>x.id===id);
+  if(a){a.status=s;saveData();render();}
+}
+
+function addPayout(id){
+  const inp=document.getElementById('pinp-'+id);
+  const val=parseFloat(inp.value);
+  if(!val||val<=0)return;
+  const a=accounts.find(x=>x.id===id);
+  if(a){
+    a.payouts.push({amt:val,date:new Date().toISOString().slice(0,10)});
+    if(a.status!=='blown')a.status='paid';
+    inp.value='';
+    saveData();render();
+  }
+}
+
+function deleteAccount(id){
+  if(!confirm('Delete this account?'))return;
+  accounts=accounts.filter(x=>x.id!==id);
+  saveData();render();
+}
+
+function fmt(n,prefix='$'){
+  if(n===undefined||n===null)return '—';
+  const abs=Math.abs(n);
+  const s=abs>=1000?prefix+Math.round(abs).toLocaleString():prefix+Math.round(abs).toString();
+  return n<0?'-'+s:(n>0&&prefix==='$'?'+'+s:s);
+}
+function fmtp(n){return n===null?'—':Math.round(n)+'%'}
+
+function render(){
+  renderDate();
+  renderKPIs();
+  renderTable();
+  renderCharts();
+  renderAnalysis();
+}
+
+function renderDate(){
+  document.getElementById('live-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'}).toUpperCase();
+}
+
+function computeStats(){
+  const total=accounts.length;
+  const blown=accounts.filter(a=>a.status==='blown').length;
+  const funded=accounts.filter(a=>a.status==='funded').length;
+  const paid=accounts.filter(a=>a.status==='paid').length;
+  const eval_=accounts.filter(a=>a.status==='eval').length;
+  const totalFees=accounts.reduce((s,a)=>s+a.fee,0);
+  const allPayouts=accounts.flatMap(a=>a.payouts);
+  const totalPayouts=allPayouts.reduce((s,p)=>s+p.amt,0);
+  const net=totalPayouts-totalFees;
+  const roi=totalFees>0?((net/totalFees)*100):null;
+  const passed=funded+paid;
+  const passRate=total>0?(passed/total*100):null;
+  const blowRate=total>0?(blown/total*100):null;
+  const totalCycles=allPayouts.length;
+  const avgPayout=totalCycles>0?(totalPayouts/totalCycles):null;
+  const cpw=passed>0?(totalFees/passed):null;
+  return {total,blown,funded,paid,eval_,totalFees,totalPayouts,net,roi,passRate,blowRate,passed,totalCycles,avgPayout,cpw};
+}
+
+function renderKPIs(){
+  const s=computeStats();
+  document.getElementById('k-total').textContent=s.total;
+  document.getElementById('k-eval').textContent=s.eval_;
+  document.getElementById('k-funded').textContent=s.funded;
+  document.getElementById('k-paid').textContent=s.paid;
+  document.getElementById('k-blown').textContent=s.blown;
+  document.getElementById('k-fees').textContent='$'+s.totalFees.toLocaleString();
+  document.getElementById('k-payouts').textContent='$'+Math.round(s.totalPayouts).toLocaleString();
+  const netEl=document.getElementById('k-net');
+  netEl.textContent=(s.net>=0?'+':'')+'$'+Math.round(Math.abs(s.net)).toLocaleString();
+  netEl.className='kpi-val '+(s.net>=0?'green':'red');
+  const roiEl=document.getElementById('k-roi');
+  roiEl.textContent=s.roi!==null?(s.roi>=0?'+':'')+Math.round(s.roi)+'%':'—';
+  roiEl.className='kpi-val '+(s.roi===null?'':(s.roi>=0?'green':'red'));
+  document.getElementById('k-pass').textContent=s.passRate!==null?Math.round(s.passRate)+'%':'—';
+
+  const pct=Math.min(s.totalPayouts/GOAL*100,100);
+  document.getElementById('goal-fill').style.width=pct+'%';
+  document.getElementById('goal-pct').textContent=Math.round(pct)+'%';
+}
+
+function renderTable(){
+  const tbody=document.getElementById('tbl-body');
+  if(accounts.length===0){
+    tbody.innerHTML='<tr class="empty-row"><td colspan="14">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</td></tr>';
+    return;
+  }
+  tbody.innerHTML=accounts.map((a,i)=>{
+    const totalPayout=a.payouts.reduce((s,p)=>s+p.amt,0);
+    const net=totalPayout-a.fee;
+    const netCls=net>0?'net-pos':'net-neg';
+    return `<tr>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${i+1}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${a.date}</td>
+      <td><span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--accent2)">${a.firm||'—'}</span></td>
+      <td style="font-weight:700">${a.inst}</td>
+      <td style="font-family:var(--font-mono);font-size:11px">$${(a.size/1000).toFixed(0)}K</td>
+      <td style="font-family:var(--font-mono);font-size:11px">$${a.erisk}</td>
+      <td style="font-family:var(--font-mono);font-size:11px">$${a.frisk}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--red)">$${a.fee}</td>
+      <td>
+        <select class="status-sel" onchange="setStatus(${a.id},this.value)">
+          <option value="eval"${a.status==='eval'?' selected':''}>IN EVAL</option>
+          <option value="funded"${a.status==='funded'?' selected':''}>FUNDED</option>
+          <option value="paid"${a.status==='paid'?' selected':''}>PAID OUT</option>
+          <option value="blown"${a.status==='blown'?' selected':''}>BLOWN</option>
+        </select>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input class="payout-inp" type="number" id="pinp-${a.id}" placeholder="$0" min="0">
+          <button class="btn-pay" onclick="addPayout(${a.id})">+ADD</button>
+        </div>
+        ${a.payouts.length>0?`<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:3px">${a.payouts.length} payout${a.payouts.length>1?'s':''}</div>`:''}
+      </td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--green)">${totalPayout>0?'$'+Math.round(totalPayout).toLocaleString():'—'}</td>
+      <td><span class="${netCls}">${(net>=0?'+':'')+'$'+Math.round(Math.abs(net)).toLocaleString()}</span></td>
+      <td style="font-size:11px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.notes||'—'}</td>
+      <td><button class="btn-del" onclick="deleteAccount(${a.id})">DEL</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function renderCharts(){
+  const s=computeStats();
+  const statusColors=['rgba(0,200,255,.8)','rgba(255,184,0,.8)','rgba(0,227,150,.8)','rgba(255,69,96,.8)'];
+
+  // Status donut
+  destroyChart('status');
+  const statusData=[s.eval_,s.funded,s.paid,s.blown];
+  const hasStatus=statusData.some(v=>v>0);
+  charts['status']=new Chart(document.getElementById('chart-status'),{
+    type:'doughnut',
+    data:{labels:['In Eval','Funded','Paid Out','Blown'],datasets:[{data:hasStatus?statusData:[1,1,1,1],backgroundColor:hasStatus?statusColors:['rgba(30,45,53,.4)','rgba(30,45,53,.3)','rgba(30,45,53,.2)','rgba(30,45,53,.1)'],borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'rgba(180,200,210,.7)',font:{size:11,family:'Space Mono'},padding:12,boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}}},cutout:'65%'}
+  });
+  document.getElementById('lbl-status').textContent=s.total>0?s.total+' total':'—';
+
+  // Cumulative P&L line
+  destroyChart('pnl');
+  let cumulData=[{x:'Start',y:0}];
+  let cum=0;
+  const sorted=[...accounts].sort((a,b)=>a.date.localeCompare(b.date));
+  sorted.forEach(a=>{
+    cum-=a.fee;
+    cumulData.push({x:a.date+' fee',y:Math.round(cum)});
+    a.payouts.forEach(p=>{cum+=p.amt;cumulData.push({x:p.date,y:Math.round(cum)});});
+  });
+  const pnlColor=cum>=0?'rgba(0,227,150,1)':'rgba(255,69,96,1)';
+  charts['pnl']=new Chart(document.getElementById('chart-pnl'),{
+    type:'line',
+    data:{labels:cumulData.map(d=>d.x),datasets:[{data:cumulData.map(d=>d.y),borderColor:pnlColor,backgroundColor:cum>=0?'rgba(0,227,150,.06)':'rgba(255,69,96,.06)',borderWidth:2,fill:true,tension:.3,pointRadius:3,pointBackgroundColor:pnlColor}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' $'+ctx.raw.toLocaleString()}}},scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(180,200,210,.6)',font:{size:10,family:'Space Mono'},callback:v=>'$'+(v>=0?'':'-')+Math.abs(v).toLocaleString()}}}}
+  });
+  document.getElementById('lbl-pnl').textContent=cum>=0?'+$'+Math.round(cum).toLocaleString():'-$'+Math.round(Math.abs(cum)).toLocaleString();
+
+  // Payout bar per account
+  destroyChart('paybar');
+  const payLabels=accounts.map((a,i)=>`Acct ${i+1} (${a.inst})`);
+  const payVals=accounts.map(a=>Math.round(a.payouts.reduce((s,p)=>s+p.amt,0)));
+  const feeVals=accounts.map(a=>a.fee);
+  charts['paybar']=new Chart(document.getElementById('chart-paybar'),{
+    type:'bar',
+    data:{
+      labels:payLabels.length?payLabels:['No accounts'],
+      datasets:[
+        {label:'Payouts',data:payVals.length?payVals:[0],backgroundColor:'rgba(0,227,150,.7)',borderRadius:4,borderSkipped:false},
+        {label:'Fee paid',data:feeVals.length?feeVals:[0],backgroundColor:'rgba(255,69,96,.5)',borderRadius:4,borderSkipped:false}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{labels:{color:'rgba(180,200,210,.7)',font:{size:10,family:'Space Mono'},boxWidth:10}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(180,200,210,.5)',font:{size:10,family:'Space Mono'}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(180,200,210,.5)',font:{size:10,family:'Space Mono'},callback:v=>'$'+v}}}}
+  });
+
+  // Fees vs Payouts
+  destroyChart('fvp');
+  const tf=s.totalFees||0; const tp=s.totalPayouts||0;
+  charts['fvp']=new Chart(document.getElementById('chart-fvp'),{
+    type:'bar',
+    data:{labels:['Fees Spent','Payouts Received'],datasets:[{data:[Math.round(tf),Math.round(tp)],backgroundColor:['rgba(255,69,96,.7)','rgba(0,227,150,.7)'],borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'rgba(180,200,210,.6)',font:{size:10,family:'Space Mono'}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(180,200,210,.5)',font:{size:10,family:'Space Mono'},callback:v=>'$'+v.toLocaleString()}}}}
+  });
+
+  // Pass/blow donut
+  destroyChart('rate');
+  const hasPB=s.passed>0||s.blown>0;
+  charts['rate']=new Chart(document.getElementById('chart-rate'),{
+    type:'doughnut',
+    data:{labels:['Passed','Blown','In Progress'],datasets:[{data:hasPB?[s.passed,s.blown,s.eval_+s.funded]:[1,1,1],backgroundColor:hasPB?['rgba(0,227,150,.8)','rgba(255,69,96,.8)','rgba(255,184,0,.6)']:['rgba(30,45,53,.4)','rgba(30,45,53,.3)','rgba(30,45,53,.2)'],borderWidth:0}]},
+    options:{responsive:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'rgba(180,200,210,.7)',font:{size:10,family:'Space Mono'},padding:10,boxWidth:8}}}}
+  });
+
+  // Goal doughnut
+  destroyChart('goal');
+  const gpct=Math.min(s.totalPayouts/GOAL*100,100);
+  charts['goal']=new Chart(document.getElementById('chart-goal'),{
+    type:'doughnut',
+    data:{labels:['Achieved','Remaining'],datasets:[{data:[Math.round(gpct),Math.round(100-gpct)],backgroundColor:['rgba(0,255,178,.8)','rgba(30,45,53,.6)'],borderWidth:0}]},
+    options:{responsive:true,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.label===('Achieved')?` $${Math.round(s.totalPayouts).toLocaleString()} / $20,000`:` $${Math.round(GOAL-s.totalPayouts).toLocaleString()} remaining`}}}}
+  });
+}
+
+function renderAnalysis(){
+  const s=computeStats();
+
+  // Stats row
+  document.getElementById('s-pass').textContent=s.passRate!==null?Math.round(s.passRate)+'%':'—';
+  document.getElementById('s-blow').textContent=s.blowRate!==null?Math.round(s.blowRate)+'%':'—';
+  document.getElementById('s-avgpay').textContent=s.avgPayout!==null?'$'+Math.round(s.avgPayout).toLocaleString():'—';
+  document.getElementById('s-cycles').textContent=s.totalCycles;
+  document.getElementById('s-cpw').textContent=s.cpw!==null?'$'+Math.round(s.cpw).toLocaleString():'—';
+  const rem=GOAL-s.totalPayouts;
+  document.getElementById('s-rem').textContent=rem>0?'$'+Math.round(rem).toLocaleString():'GOAL REACHED 🎯';
+
+  // Fees breakdown
+  const feeEl=document.getElementById('analysis-fees');
+  const byStatus={eval:0,funded:0,paid:0,blown:0};
+  accounts.forEach(a=>byStatus[a.status]+=a.fee);
+  feeEl.innerHTML=[
+    ['Total fees paid','$'+Math.round(s.totalFees).toLocaleString(),'a'],
+    ['Fees on blown accounts','$'+Math.round(byStatus.blown).toLocaleString(),'r'],
+    ['Fees on passed accounts','$'+Math.round(byStatus.funded+byStatus.paid).toLocaleString(),'g'],
+    ['Fees still in eval','$'+Math.round(byStatus.eval).toLocaleString(),'a'],
+    ['Fee recovery rate',s.totalFees>0?Math.round(s.totalPayouts/s.totalFees*100)+'%':'—',s.totalPayouts>=s.totalFees?'g':'r'],
+  ].map(([k,v,c])=>`<div class="analysis-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
+
+  // Payout log
+  const payEl=document.getElementById('analysis-payouts');
+  const allPay=accounts.flatMap((a,i)=>a.payouts.map(p=>({acct:i+1,inst:a.inst,amt:p.amt,date:p.date})));
+  if(allPay.length===0){
+    payEl.innerHTML='<div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:.5rem 0">No payouts yet</div>';
+  } else {
+    payEl.innerHTML=allPay.sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`
+      <div class="analysis-row">
+        <span class="ak">Acct ${p.acct} (${p.inst}) · ${p.date}</span>
+        <span class="av g">+$${Math.round(p.amt).toLocaleString()}</span>
+      </div>`).join('');
+  }
+
+  // By instrument
+  const instEl=document.getElementById('analysis-inst');
+  const byFirm={};
+  accounts.forEach(a=>{
+    const k=a.firm||'Unknown';
+    if(!byFirm[k])byFirm[k]={count:0,fees:0,payouts:0,passed:0,blown:0};
+    byFirm[k].count++;
+    byFirm[k].fees+=a.fee;
+    byFirm[k].payouts+=a.payouts.reduce((s,p)=>s+p.amt,0);
+    if(a.status==='paid'||a.status==='funded')byFirm[k].passed++;
+    if(a.status==='blown')byFirm[k].blown++;
+  });
+  instEl.innerHTML=Object.entries(byFirm).length?Object.entries(byFirm).map(([firm,d])=>`
+    <div class="analysis-row"><span class="ak">${firm} · ${d.count} acct${d.count>1?'s':''}</span><span class="av a">${d.passed} passed / ${d.blown} blown</span></div>
+    <div class="analysis-row"><span class="ak">${firm} net P&L</span><span class="av ${d.payouts-d.fees>=0?'g':'r'}">${d.payouts-d.fees>=0?'+':''}$${Math.round(d.payouts-d.fees).toLocaleString()}</span></div>
+  `).join(''):
+  '<div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:.5rem 0">No data yet</div>';
+
+  // Risk vs return
+  const riskEl=document.getElementById('analysis-risk');
+  const totalEvalRisk=accounts.reduce((s,a)=>s+a.erisk,0);
+  const totalFundRisk=accounts.reduce((s,a)=>s+a.frisk,0);
+  riskEl.innerHTML=[
+    ['Avg eval risk/trade',accounts.length?'$'+Math.round(totalEvalRisk/accounts.length):'—','a'],
+    ['Avg funded risk/trade',accounts.length?'$'+Math.round(totalFundRisk/accounts.length):'—','a'],
+    ['Return on risk',s.totalPayouts>0&&s.totalFees>0?Math.round((s.net/s.totalFees)*100)+'%':'—',s.net>=0?'g':'r'],
+    ['Expected MLL breach at eval risk',accounts.length?Math.round(2000/(totalEvalRisk/accounts.length))+' consecutive losses':'—','r'],
+    ['Expected MLL breach at fund risk',accounts.length?Math.round(2000/(totalFundRisk/accounts.length))+' consecutive losses':'—','a'],
+  ].map(([k,v,c])=>`<div class="analysis-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
+}
+
+loadData();
+loadFirms();
+render();
+setInterval(renderDate,60000);
+</script>
+</body>
+</html>
