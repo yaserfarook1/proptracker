@@ -2,755 +2,803 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Prop Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#080C10;
-  --surface:#0D1318;
-  --surface2:#111920;
-  --border:#1E2D35;
-  --border2:#243540;
-  --text:#E8F4F0;
-  --muted:#5A7A80;
-  --accent:#00FFB2;
-  --accent2:#00C8FF;
-  --gold:#FFB800;
-  --red:#FF4560;
-  --green:#00E396;
-  --orange:#FF6B35;
-  --purple:#8B5CF6;
-  --font-head:'Syne',sans-serif;
-  --font-mono:'Space Mono',monospace;
+  --bg:#0A0D12;
+  --bg2:#0D1117;
+  --panel:#11171F;
+  --panel2:#161E28;
+  --line:#1E2833;
+  --line2:#2A3744;
+  --ink:#ECF1F4;
+  --ink2:#B6C2CD;
+  --dim:#6B7A88;
+  --gold:#F5B544;
+  --gold-soft:rgba(245,181,68,.12);
+  --pos:#3DDC8A;
+  --pos-soft:rgba(61,220,138,.12);
+  --neg:#FF6B81;
+  --neg-soft:rgba(255,107,129,.12);
+  --info:#5BB0FF;
+  --info-soft:rgba(91,176,255,.12);
+  --violet:#A78BFA;
+  --display:'Bricolage Grotesque',sans-serif;
+  --body:'Hanken Grotesk',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+  --r:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{background:var(--bg);color:var(--text);font-family:var(--font-head);min-height:100vh;overflow-x:hidden}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--body);
+  min-height:100vh;
+  overflow-x:hidden;
+  font-feature-settings:'tnum' 1,'lnum' 1;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(900px 500px at 12% -5%,rgba(245,181,68,.07),transparent 60%),
+    radial-gradient(900px 600px at 95% 0%,rgba(91,176,255,.06),transparent 55%),
+    radial-gradient(700px 500px at 50% 110%,rgba(61,220,138,.05),transparent 60%);
+}
+.wrap{max-width:1320px;margin:0 auto;padding:0 clamp(14px,3vw,40px);position:relative;z-index:1}
 
-/* Grid noise overlay */
-body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle at 20% 20%,rgba(0,255,178,0.03) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(0,200,255,0.03) 0%,transparent 50%);pointer-events:none;z-index:0}
+/* loading */
+#loader{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .4s}
+#loader.hide{opacity:0;pointer-events:none}
+.spin{width:38px;height:38px;border:3px solid var(--line2);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#loader .lt{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.12em}
 
-.container{max-width:1280px;margin:0 auto;padding:0 2rem;position:relative;z-index:1}
+/* header */
+header{padding:clamp(20px,3vw,30px) 0 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px}
+.mark{width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,var(--gold),#E89A1E);display:grid;place-items:center;flex:none;box-shadow:0 8px 26px rgba(245,181,68,.28)}
+.mark svg{width:24px;height:24px}
+.brand h1{font-family:var(--display);font-weight:800;font-size:clamp(1.35rem,3.6vw,1.85rem);letter-spacing:-.03em;line-height:1}
+.brand .sub{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em;margin-top:5px}
+.hmeta{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.sync{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--ink2);background:var(--panel);border:1px solid var(--line);padding:8px 13px;border-radius:99px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--pos);box-shadow:0 0 0 0 rgba(61,220,138,.5);animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(61,220,138,.45)}50%{box-shadow:0 0 0 7px rgba(61,220,138,0)}}
+.hdate{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.06em;text-align:right}
 
-/* ── HEADER ── */
-header{padding:2rem 0 1.5rem;border-bottom:1px solid var(--border)}
-.header-inner{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem}
-.logo{display:flex;flex-direction:column;gap:2px}
-.logo-main{font-size:1.6rem;font-weight:800;letter-spacing:-0.03em;color:var(--text)}
-.logo-main span{color:var(--accent)}
-.logo-sub{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:0.08em}
-.header-meta{display:flex;gap:12px;align-items:center}
-.live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,255,178,0.4)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(0,255,178,0)}}
-.live-text{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:14px;margin-top:6px}
+.card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:var(--r);position:relative;overflow:hidden}
+.gauge-card{padding:clamp(20px,3vw,30px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.gauge-card .glabel{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.gauge-wrap{position:relative;width:min(260px,70vw);aspect-ratio:1}
+.gauge-wrap svg{transform:rotate(-90deg);width:100%;height:100%}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.gauge-center .gpct{font-family:var(--display);font-weight:800;font-size:clamp(2.4rem,9vw,3.3rem);letter-spacing:-.04em;line-height:.95;background:linear-gradient(120deg,var(--gold),#FFD27A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.gauge-center .gval{font-family:var(--mono);font-size:13px;color:var(--ink2);margin-top:8px}
+.gauge-center .ggoal{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:2px}
 
-/* ── GOAL BAR ── */
-.goal-section{padding:1.5rem 0;border-bottom:1px solid var(--border)}
-.goal-label{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.08em;margin-bottom:.75rem;display:flex;justify-content:space-between}
-.goal-track{height:6px;background:var(--surface2);border-radius:3px;overflow:visible;position:relative}
-.goal-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1);position:relative;min-width:6px}
-.goal-fill::after{content:'';position:absolute;right:-1px;top:50%;transform:translateY(-50%);width:12px;height:12px;border-radius:50%;background:var(--accent2);border:2px solid var(--bg);box-shadow:0 0 8px var(--accent2)}
-.goal-milestones{display:flex;justify-content:space-between;margin-top:.5rem}
-.milestone{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.hero-stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bigstat{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:var(--r);padding:clamp(16px,2.4vw,24px);display:flex;flex-direction:column;justify-content:space-between;min-height:130px;position:relative;overflow:hidden}
+.bigstat::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c,var(--line2))}
+.bigstat .bl{font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+.bigstat .bv{font-family:var(--display);font-weight:800;font-size:clamp(1.7rem,5vw,2.5rem);letter-spacing:-.035em;line-height:1;margin-top:auto}
+.bigstat .bn{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:8px}
+.bv.pos{color:var(--pos)} .bv.neg{color:var(--neg)} .bv.gold{color:var(--gold)} .bv.info{color:var(--info)}
+.minibar{height:6px;border-radius:4px;background:var(--panel2);overflow:hidden;margin-top:10px}
+.minibar i{display:block;height:100%;border-radius:4px;transition:width .8s cubic-bezier(.4,0,.2,1)}
 
-/* ── KPI GRID ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:1.5rem 0}
-.kpi{background:var(--surface);padding:1.25rem 1rem;position:relative;overflow:hidden}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--border))}
-.kpi-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;margin-bottom:.5rem}
-.kpi-val{font-size:1.75rem;font-weight:800;letter-spacing:-.03em;color:var(--text);line-height:1}
-.kpi-val.green{color:var(--green)}
-.kpi-val.red{color:var(--red)}
-.kpi-val.gold{color:var(--gold)}
-.kpi-val.blue{color:var(--accent2)}
-.kpi-val.accent{color:var(--accent)}
-.kpi-sub{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:4px}
+/* kpi strip */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px;margin-top:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px 15px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi:hover{transform:translateY(-2px);border-color:var(--line2)}
+.kpi .kl{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.kpi .kl .ki{width:7px;height:7px;border-radius:2px;background:var(--c,var(--line2))}
+.kpi .kv{font-family:var(--display);font-weight:700;font-size:clamp(1.3rem,3.6vw,1.7rem);letter-spacing:-.03em;margin-top:9px;line-height:1}
+.kv.pos{color:var(--pos)} .kv.neg{color:var(--neg)} .kv.gold{color:var(--gold)} .kv.info{color:var(--info)} .kv.violet{color:var(--violet)}
 
-/* ── SECTION LAYOUT ── */
-.section{margin:2rem 0}
-.section-head{display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem}
-.section-num{font-family:var(--font-mono);font-size:10px;color:var(--accent);background:rgba(0,255,178,.08);border:1px solid rgba(0,255,178,.2);border-radius:4px;padding:2px 8px;letter-spacing:.06em}
-.section-title{font-size:1.1rem;font-weight:700;letter-spacing:-.02em}
+/* pipeline */
+.pipe{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.pipe-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.pipe-top h3{font-family:var(--display);font-weight:700;font-size:1rem;letter-spacing:-.02em}
+.pipe-top .pt{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.pipe-bar{display:flex;height:34px;border-radius:9px;overflow:hidden;background:var(--panel2);gap:2px}
+.pipe-seg{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#06120c;transition:flex .8s cubic-bezier(.4,0,.2,1);min-width:0;white-space:nowrap;overflow:hidden}
+.pipe-legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+.pl-item{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.pl-item b{width:9px;height:9px;border-radius:3px}
 
-/* ── ADD FORM ── */
-.add-form{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-.form-group{display:flex;flex-direction:column;gap:5px}
-.form-group label{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em}
-.form-group select,.form-group input{background:var(--surface2);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:12px;padding:7px 10px;height:34px;outline:none;transition:border-color .2s}
-.form-group select:focus,.form-group input:focus{border-color:var(--accent)}
-.form-group input{width:110px}
-.btn-add{background:var(--accent);color:#000;font-family:var(--font-head);font-size:13px;font-weight:700;border:none;border-radius:6px;padding:0 18px;height:34px;cursor:pointer;letter-spacing:-.01em;transition:opacity .2s;white-space:nowrap}
-.btn-add:hover{opacity:.85}
+/* section */
+.section{margin-top:30px}
+.shead{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.snum{font-family:var(--mono);font-size:11px;color:var(--gold);background:var(--gold-soft);border:1px solid rgba(245,181,68,.25);border-radius:7px;padding:3px 9px}
+.stitle{font-family:var(--display);font-weight:700;font-size:clamp(1.05rem,2.6vw,1.3rem);letter-spacing:-.025em}
 
-/* ── TABLE ── */
-.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface2)}
-td{padding:11px 14px;border-bottom:1px solid rgba(30,45,53,.7);vertical-align:middle;color:var(--text)}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(255,255,255,.01)}
+/* add form */
+.add{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:clamp(16px,2.4vw,22px)}
+.add-grid{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:7px;flex:1 1 150px;min-width:130px}
+.fg.wide{flex:1 1 200px}
+.fg label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+.fg select,.fg input{background:var(--bg2);border:1px solid var(--line2);border-radius:10px;color:var(--ink);font-family:var(--body);font-weight:500;font-size:14px;padding:11px 13px;height:44px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
+.fg select:focus,.fg input:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
+.datebox{display:flex;align-items:center;gap:6px}
+.datebox input{flex:1}
+.stepbtn{flex:none;width:44px;height:44px;border-radius:10px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink2);font-size:18px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+.stepbtn:hover{border-color:var(--gold);color:var(--gold)}
+.btn-add{flex:1 1 100%;background:linear-gradient(145deg,var(--gold),#E89A1E);color:#1a1205;font-family:var(--display);font-weight:700;font-size:15px;border:none;border-radius:11px;height:48px;cursor:pointer;letter-spacing:-.01em;transition:.2s;box-shadow:0 8px 22px rgba(245,181,68,.25)}
+.btn-add:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(245,181,68,.35)}
+.btn-add:active{transform:translateY(0)}
+@media(min-width:560px){.btn-add{flex:1 1 180px;max-width:230px}}
 
-.badge{display:inline-block;font-family:var(--font-mono);font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:.04em}
-.b-eval{background:rgba(0,200,255,.1);color:var(--accent2);border:1px solid rgba(0,200,255,.2)}
-.b-funded{background:rgba(255,184,0,.1);color:var(--gold);border:1px solid rgba(255,184,0,.2)}
-.b-paid{background:rgba(0,227,150,.1);color:var(--green);border:1px solid rgba(0,227,150,.2)}
-.b-blown{background:rgba(255,69,96,.1);color:var(--red);border:1px solid rgba(255,69,96,.2)}
+/* account cards */
+.acct-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.acct{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;position:relative;transition:border-color .2s,transform .2s;animation:rise .5s both}
+.acct:hover{border-color:var(--line2)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.acct-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.acct-firm{font-family:var(--display);font-weight:700;font-size:1.15rem;letter-spacing:-.02em}
+.acct-meta{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+.acct-meta span{color:var(--ink2)}
+.badge{font-family:var(--mono);font-size:10px;font-weight:600;padding:5px 9px;border-radius:7px;letter-spacing:.04em;white-space:nowrap;flex:none}
+.b-eval{background:var(--info-soft);color:var(--info)}
+.b-funded{background:var(--gold-soft);color:var(--gold)}
+.b-paid{background:var(--pos-soft);color:var(--pos)}
+.b-blown{background:var(--neg-soft);color:var(--neg)}
+.acct-net{display:flex;align-items:baseline;gap:8px}
+.acct-net .nv{font-family:var(--display);font-weight:800;font-size:1.9rem;letter-spacing:-.04em;line-height:1}
+.acct-net .nv.pos{color:var(--pos)} .acct-net .nv.neg{color:var(--neg)}
+.acct-net .nl{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.acct-flow{display:flex;flex-direction:column;gap:7px}
+.flow-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px}
+.flow-row .fk{color:var(--dim)}
+.flow-row .fee{color:var(--neg)}
+.flow-row .pay{color:var(--pos)}
+.flow-bar{height:7px;border-radius:5px;background:var(--neg-soft);overflow:hidden;position:relative}
+.flow-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--pos);border-radius:5px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.acct-ctrl{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:14px}
+.acct-ctrl .row{display:flex;gap:8px;align-items:center}
+.sel{flex:1;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;color:var(--ink);font-family:var(--mono);font-size:12px;padding:9px 10px;outline:none;cursor:pointer}
+.sel:focus{border-color:var(--gold)}
+.pin{flex:1;background:var(--bg2);border:1px solid var(--line2);border-radius:9px;color:var(--ink);font-family:var(--mono);font-size:12px;padding:9px 11px;outline:none;width:100%}
+.pin:focus{border-color:var(--gold)}
+.bp{flex:none;background:var(--pos-soft);border:1px solid rgba(61,220,138,.3);color:var(--pos);font-family:var(--mono);font-size:11px;font-weight:600;padding:9px 13px;border-radius:9px;cursor:pointer;transition:.2s}
+.bp:hover{background:rgba(61,220,138,.22)}
+.bdel{flex:none;background:transparent;border:1px solid var(--line2);color:var(--dim);font-family:var(--mono);font-size:11px;padding:9px 11px;border-radius:9px;cursor:pointer;transition:.2s}
+.bdel:hover{border-color:var(--neg);color:var(--neg)}
+.paychip{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.empty{grid-column:1/-1;text-align:center;padding:48px 20px;color:var(--dim);font-family:var(--mono);font-size:13px;background:var(--panel);border:1px dashed var(--line2);border-radius:var(--r)}
 
-.status-sel{background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:4px 6px;outline:none;cursor:pointer}
-.payout-inp{background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--font-mono);font-size:11px;padding:4px 7px;width:80px;outline:none}
-.payout-inp:focus{border-color:var(--accent)}
-.btn-pay{background:rgba(0,255,178,.1);border:1px solid rgba(0,255,178,.25);color:var(--accent);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer;transition:background .2s}
-.btn-pay:hover{background:rgba(0,255,178,.2)}
-.btn-del{background:rgba(255,69,96,.08);border:1px solid rgba(255,69,96,.2);color:var(--red);font-family:var(--font-mono);font-size:10px;padding:4px 8px;border-radius:4px;cursor:pointer}
-.btn-del:hover{background:rgba(255,69,96,.15)}
-.net-pos{color:var(--green);font-weight:700;font-family:var(--font-mono);font-size:12px}
-.net-neg{color:var(--red);font-weight:700;font-family:var(--font-mono);font-size:12px}
-.empty-row td{text-align:center;padding:3rem;color:var(--muted);font-family:var(--font-mono);font-size:12px}
+/* charts */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.chart-card.full{grid-column:1/-1}
+.cc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.cc-top .ct{font-family:var(--display);font-weight:600;font-size:.95rem;letter-spacing:-.01em}
+.cc-top .cv{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink2)}
+.chart-card canvas{max-height:230px}
+.chart-card.full canvas{max-height:210px}
 
-/* ── CHARTS GRID ── */
-.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.charts-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:1px}
-.chart-box{background:var(--surface);padding:1.25rem}
-.chart-box.full{grid-column:1/-1}
-.chart-box-title{font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.07em;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center}
-.chart-box-title span{color:var(--text);font-size:12px;font-family:var(--font-head);font-weight:600}
-canvas{max-height:220px}
-.chart-full canvas{max-height:180px}
+/* analysis */
+.an-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.an-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.an-card h4{font-family:var(--display);font-weight:700;font-size:.95rem;margin-bottom:12px;display:flex;align-items:center;gap:9px;letter-spacing:-.01em}
+.an-card h4 em{width:9px;height:9px;border-radius:3px;background:var(--gold);font-style:normal}
+.an-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.an-row:last-child{border-bottom:none}
+.an-row .ak{color:var(--ink2);font-family:var(--body)}
+.an-row .av{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.av.g{color:var(--pos)} .av.r{color:var(--neg)} .av.a{color:var(--gold)}
+.scroll{max-height:230px;overflow-y:auto}
+.an-empty{font-family:var(--mono);font-size:12px;color:var(--dim);padding:10px 0}
 
-/* ── STATS ROW ── */
-.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-top:1px}
-.stat-cell{background:var(--surface);padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center}
-.stat-cell .sk{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
-.stat-cell .sv{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text)}
+/* footer */
+footer{margin-top:42px;border-top:1px solid var(--line);padding:22px 0 40px}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.foot .fl{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.foot .fr{font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;gap:20px;flex-wrap:wrap}
 
-/* ── PAYOUT LOG ── */
-.payout-history{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.payout-log-item{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1.25rem;border-bottom:1px solid rgba(30,45,53,.7);font-size:12px}
-.payout-log-item:last-child{border-bottom:none}
-.plog-left{display:flex;flex-direction:column;gap:2px}
-.plog-acct{font-weight:600;color:var(--text)}
-.plog-date{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
-.plog-amt{font-family:var(--font-mono);font-weight:700;color:var(--green);font-size:13px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px}
 
-/* ── ANALYSIS CARDS ── */
-.analysis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:1.5rem}
-.analysis-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
-.analysis-card h4{font-size:.85rem;font-weight:700;margin-bottom:1rem;color:var(--text);display:flex;align-items:center;gap:.5rem}
-.analysis-card h4::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--accent)}
-.analysis-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(30,45,53,.5);font-size:12px}
-.analysis-row:last-child{border-bottom:none}
-.analysis-row .ak{color:var(--muted);font-family:var(--font-mono);font-size:11px}
-.analysis-row .av{font-family:var(--font-mono);font-weight:700;color:var(--text)}
-.av.g{color:var(--green)}
-.av.r{color:var(--red)}
-.av.a{color:var(--gold)}
-
-/* ── FOOTER ── */
-footer{border-top:1px solid var(--border);padding:1.5rem 0;margin-top:3rem}
-.footer-inner{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
-.footer-left{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
-.footer-right{font-family:var(--font-mono);font-size:10px;color:var(--muted);display:flex;gap:16px}
-
-/* scrollbar */
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:var(--bg)}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-
-@media(max-width:700px){
-  .charts-grid,.charts-grid-3,.analysis-grid{grid-template-columns:1fr}
-  .chart-box.full{grid-column:1}
-  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+/* responsive */
+@media(max-width:900px){
+  .hero{grid-template-columns:1fr}
+  .charts,.an-grid{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .hero-stats{grid-template-columns:1fr 1fr}
+  .hdate{display:none}
+  .acct-grid{grid-template-columns:1fr}
+}
+/* big screens / TV */
+@media(min-width:1700px){
+  .wrap{max-width:1620px}
+  .acct-grid{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
 }
 </style>
 </head>
 <body>
 
-<div class="container">
+<div id="loader"><div class="spin"></div><div class="lt">SYNCING SHARED DATA…</div></div>
 
-<!-- HEADER -->
-<header>
-  <div class="header-inner">
-    <div class="logo">
-      <div class="logo-main">PROP <span>TRACKER</span></div>
-      <div class="logo-sub">CHALLENGE ANALYTICS DASHBOARD · LUCIDFLEX</div>
-    </div>
-    <div class="header-meta">
-      <div class="live-dot"></div>
-      <div class="live-text" id="live-date">—</div>
-    </div>
-  </div>
-</header>
+<div class="wrap">
 
-<!-- GOAL BAR -->
-<div class="goal-section">
-  <div class="goal-label">
-    <span>PROGRESS TO $20,000 GOAL</span>
-    <span id="goal-pct">0%</span>
-  </div>
-  <div class="goal-track">
-    <div class="goal-fill" id="goal-fill" style="width:0%"></div>
-  </div>
-  <div class="goal-milestones">
-    <span class="milestone">$0</span>
-    <span class="milestone">$5K</span>
-    <span class="milestone">$10K</span>
-    <span class="milestone">$15K</span>
-    <span class="milestone">$20K</span>
-  </div>
-</div>
-
-<!-- KPIs -->
-<div class="kpi-grid" id="kpi-grid">
-  <div class="kpi" style="--kpi-color:var(--accent2)"><div class="kpi-label">ACCOUNTS</div><div class="kpi-val blue" id="k-total">0</div></div>
-  <div class="kpi" style="--kpi-color:var(--gold)"><div class="kpi-label">IN EVAL</div><div class="kpi-val gold" id="k-eval">0</div></div>
-  <div class="kpi" style="--kpi-color:var(--orange)"><div class="kpi-label">FUNDED</div><div class="kpi-val" style="color:var(--orange)" id="k-funded">0</div></div>
-  <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">PAID OUT</div><div class="kpi-val green" id="k-paid">0</div></div>
-  <div class="kpi" style="--kpi-color:var(--red)"><div class="kpi-label">BLOWN</div><div class="kpi-val red" id="k-blown">0</div></div>
-  <div class="kpi" style="--kpi-color:var(--red)"><div class="kpi-label">FEES PAID</div><div class="kpi-val red" id="k-fees">$0</div></div>
-  <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-label">TOTAL PAYOUTS</div><div class="kpi-val green" id="k-payouts">$0</div></div>
-  <div class="kpi" style="--kpi-color:var(--accent)"><div class="kpi-label">NET P&L</div><div class="kpi-val accent" id="k-net">$0</div></div>
-  <div class="kpi" style="--kpi-color:var(--purple)"><div class="kpi-label">ROI</div><div class="kpi-val" style="color:var(--purple)" id="k-roi">—</div></div>
-  <div class="kpi" style="--kpi-color:var(--accent2)"><div class="kpi-label">PASS RATE</div><div class="kpi-val blue" id="k-pass">—</div></div>
-</div>
-
-<!-- ADD ACCOUNT -->
-<div class="section">
-  <div class="section-head">
-    <div class="section-num">01</div>
-    <div class="section-title">Add Challenge Account</div>
-  </div>
-  <div class="add-form">
-    <div class="form-group">
-      <label>PROP FIRM</label>
-      <div style="display:flex;gap:5px">
-        <select id="inp-firm" style="min-width:120px">
-          <option value="Lucid">Lucid</option>
-          <option value="MFF">MFF</option>
-          <option value="Topstep">Topstep</option>
-          <option value="Apex">Apex</option>
-          <option value="TradeDay">TradeDay</option>
-          <option value="__new__">+ Add new...</option>
-        </select>
+  <header>
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a1205" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 4 8-8"/><path d="M17 7h4v4"/></svg>
+      </div>
+      <div>
+        <h1>Prop Tracker</h1>
+        <div class="sub">CHALLENGE ANALYTICS · SHARED DASHBOARD</div>
       </div>
     </div>
-    <div class="form-group" id="new-firm-group" style="display:none">
-      <label>NEW FIRM NAME</label>
-      <input type="text" id="inp-newfirm" placeholder="Firm name..." style="width:120px">
+    <div class="hmeta">
+      <div class="sync"><span class="dot"></span><span id="sync-txt">Connecting…</span></div>
+      <div class="hdate" id="live-date">—</div>
     </div>
-    <div class="form-group">
-      <label>INSTRUMENT</label>
-      <select id="inp-inst">
-        <option value="GC">GC — Gold</option>
-        <option value="NQ">NQ — Nasdaq</option>
-        <option value="GC+NQ">GC + NQ</option>
-        <option value="ES">ES — S&P 500</option>
-        <option value="CL">CL — Crude Oil</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>ACCOUNT SIZE</label>
-      <select id="inp-size">
-        <option value="25000">25K</option>
-        <option value="50000">50K</option>
-        <option value="100000">100K</option>
-        <option value="150000">150K</option>
-        <option value="200000">200K</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>FEE PAID ($)</label>
-      <input type="number" id="inp-fee" value="175" min="0" step="1">
-    </div>
-    <div class="form-group">
-      <label>EVAL RISK/TRADE ($)</label>
-      <input type="number" id="inp-erisk" value="750" min="0" step="50">
-    </div>
-    <div class="form-group">
-      <label>FUNDED RISK/TRADE ($)</label>
-      <input type="number" id="inp-frisk" value="400" min="0" step="50">
-    </div>
-    <div class="form-group">
-      <label>NOTES</label>
-      <input type="text" id="inp-notes" placeholder="optional..." style="width:160px">
-    </div>
-    <button class="btn-add" onclick="addAccount()">+ ADD ACCOUNT</button>
-  </div>
-</div>
+  </header>
 
-<!-- ACCOUNT TABLE -->
-<div class="section">
-  <div class="section-head">
-    <div class="section-num">02</div>
-    <div class="section-title">Account Log</div>
-  </div>
-  <div class="tbl-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>DATE</th>
-          <th>FIRM</th>
-          <th>INST</th>
-          <th>SIZE</th>
-          <th>EVAL RISK</th>
-          <th>FUND RISK</th>
-          <th>FEE</th>
-          <th>STATUS</th>
-          <th>ADD PAYOUT</th>
-          <th>TOTAL PAYOUTS</th>
-          <th>NET P&L</th>
-          <th>NOTES</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tbl-body">
-        <tr class="empty-row"><td colspan="14">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- CHARTS -->
-<div class="section">
-  <div class="section-head">
-    <div class="section-num">03</div>
-    <div class="section-title">Visual Analytics</div>
-  </div>
-
-  <div class="charts-grid">
-    <div class="chart-box">
-      <div class="chart-box-title">ACCOUNT STATUS<span id="lbl-status">—</span></div>
-      <canvas id="chart-status"></canvas>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="card gauge-card">
+      <div class="glabel">Progress to $20,000 goal</div>
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 200 200">
+          <circle cx="100" cy="100" r="86" fill="none" stroke="var(--panel2)" stroke-width="16"/>
+          <circle id="gauge-arc" cx="100" cy="100" r="86" fill="none" stroke="url(#gg)" stroke-width="16" stroke-linecap="round" stroke-dasharray="540" stroke-dashoffset="540" style="transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)"/>
+          <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F5B544"/><stop offset="1" stop-color="#FFD27A"/></linearGradient></defs>
+        </svg>
+        <div class="gauge-center">
+          <div class="gpct" id="g-pct">0%</div>
+          <div class="gval" id="g-val">$0 collected</div>
+          <div class="ggoal">of $20,000 target</div>
+        </div>
+      </div>
     </div>
-    <div class="chart-box">
-      <div class="chart-box-title">CUMULATIVE P&L<span id="lbl-pnl">—</span></div>
-      <canvas id="chart-pnl"></canvas>
-    </div>
-    <div class="chart-box full chart-full">
-      <div class="chart-box-title">PAYOUT HISTORY — PER ACCOUNT<span id="lbl-paybar">—</span></div>
-      <canvas id="chart-paybar" style="max-height:160px"></canvas>
+    <div class="hero-stats">
+      <div class="bigstat" style="--c:var(--pos)">
+        <div class="bl">Net P&amp;L</div>
+        <div class="bv pos" id="h-net">$0</div>
+        <div class="bn" id="h-net-sub">payouts minus fees</div>
+      </div>
+      <div class="bigstat" style="--c:var(--gold)">
+        <div class="bl">Total Payouts</div>
+        <div class="bv gold" id="h-pay">$0</div>
+        <div class="bn" id="h-pay-sub">0 payout cycles</div>
+      </div>
+      <div class="bigstat" style="--c:var(--info)">
+        <div class="bl">Pass Rate</div>
+        <div class="bv info" id="h-pass">—</div>
+        <div class="minibar"><i id="h-pass-bar" style="width:0%;background:var(--info)"></i></div>
+      </div>
+      <div class="bigstat" style="--c:var(--violet)">
+        <div class="bl">Return on Fees</div>
+        <div class="bv" style="color:var(--violet)" id="h-roi">—</div>
+        <div class="bn" id="h-roi-sub">vs $0 in fees</div>
+      </div>
     </div>
   </div>
 
-  <div class="charts-grid-3">
-    <div class="chart-box">
-      <div class="chart-box-title">FEES vs PAYOUTS<span></span></div>
-      <canvas id="chart-fvp"></canvas>
-    </div>
-    <div class="chart-box">
-      <div class="chart-box-title">PASS / BLOW RATE<span></span></div>
-      <canvas id="chart-rate"></canvas>
-    </div>
-    <div class="chart-box">
-      <div class="chart-box-title">GOAL PROGRESS<span></span></div>
-      <canvas id="chart-goal"></canvas>
-    </div>
-  </div>
-</div>
-
-<!-- STATS + ANALYSIS -->
-<div class="section">
-  <div class="section-head">
-    <div class="section-num">04</div>
-    <div class="section-title">Deep Analysis</div>
+  <!-- KPI STRIP -->
+  <div class="kpis">
+    <div class="kpi"><div class="kl"><span class="ki" style="--c:var(--info)"></span>Accounts</div><div class="kv info" id="k-total">0</div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="--c:var(--info)"></span>In Eval</div><div class="kv" id="k-eval">0</div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="--c:var(--gold)"></span>Funded</div><div class="kv gold" id="k-funded">0</div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="--c:var(--pos)"></span>Paid Out</div><div class="kv pos" id="k-paid">0</div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="--c:var(--neg)"></span>Blown</div><div class="kv neg" id="k-blown">0</div></div>
+    <div class="kpi"><div class="kl"><span class="ki" style="--c:var(--neg)"></span>Fees Paid</div><div class="kv neg" id="k-fees">$0</div></div>
   </div>
 
-  <div class="stats-row" id="stats-row">
-    <div class="stat-cell"><span class="sk">PASS RATE</span><span class="sv" id="s-pass">—</span></div>
-    <div class="stat-cell"><span class="sk">BLOW RATE</span><span class="sv" id="s-blow">—</span></div>
-    <div class="stat-cell"><span class="sk">AVG PAYOUT SIZE</span><span class="sv" id="s-avgpay">—</span></div>
-    <div class="stat-cell"><span class="sk">TOTAL PAYOUT CYCLES</span><span class="sv" id="s-cycles">—</span></div>
-    <div class="stat-cell"><span class="sk">COST PER WIN</span><span class="sv" id="s-cpw">—</span></div>
-    <div class="stat-cell"><span class="sk">REMAINING TO $20K</span><span class="sv" id="s-rem">—</span></div>
+  <!-- PIPELINE -->
+  <div class="pipe">
+    <div class="pipe-top">
+      <h3>Account Pipeline</h3>
+      <span class="pt" id="pipe-total">0 accounts</span>
+    </div>
+    <div class="pipe-bar" id="pipe-bar"></div>
+    <div class="pipe-legend">
+      <div class="pl-item"><b style="background:var(--info)"></b>In Eval <span id="lg-eval" style="color:var(--dim);margin-left:2px">0</span></div>
+      <div class="pl-item"><b style="background:var(--gold)"></b>Funded <span id="lg-funded" style="color:var(--dim);margin-left:2px">0</span></div>
+      <div class="pl-item"><b style="background:var(--pos)"></b>Paid Out <span id="lg-paid" style="color:var(--dim);margin-left:2px">0</span></div>
+      <div class="pl-item"><b style="background:var(--neg)"></b>Blown <span id="lg-blown" style="color:var(--dim);margin-left:2px">0</span></div>
+    </div>
   </div>
 
-  <div class="analysis-grid">
-    <div class="analysis-card">
-      <h4>Fee Breakdown</h4>
-      <div id="analysis-fees"></div>
-    </div>
-    <div class="analysis-card">
-      <h4>Payout Log</h4>
-      <div id="analysis-payouts" style="max-height:200px;overflow-y:auto"></div>
-    </div>
-    <div class="analysis-card">
-      <h4>Performance by Firm</h4>
-      <div id="analysis-inst"></div>
-    </div>
-    <div class="analysis-card">
-      <h4>Risk vs Return</h4>
-      <div id="analysis-risk"></div>
+  <!-- ADD -->
+  <div class="section">
+    <div class="shead"><div class="snum">01</div><div class="stitle">Add Challenge Account</div></div>
+    <div class="add">
+      <div class="add-grid">
+        <div class="fg">
+          <label>Date Added</label>
+          <div class="datebox">
+            <button class="stepbtn" onclick="stepDate(-1)" title="Previous day">‹</button>
+            <input type="date" id="inp-date">
+            <button class="stepbtn" onclick="stepDate(1)" title="Next day">›</button>
+          </div>
+        </div>
+        <div class="fg">
+          <label>Prop Firm</label>
+          <select id="inp-firm">
+            <option value="Lucid">Lucid</option>
+            <option value="MFF">MFF</option>
+            <option value="Topstep">Topstep</option>
+            <option value="Apex">Apex</option>
+            <option value="TradeDay">TradeDay</option>
+            <option value="__new__">+ Add new…</option>
+          </select>
+        </div>
+        <div class="fg" id="newfirm-fg" style="display:none">
+          <label>New Firm Name</label>
+          <input type="text" id="inp-newfirm" placeholder="Firm name…">
+        </div>
+        <div class="fg">
+          <label>Instrument</label>
+          <select id="inp-inst">
+            <option value="GC">GC — Gold</option>
+            <option value="NQ">NQ — Nasdaq</option>
+            <option value="GC+NQ">GC + NQ</option>
+            <option value="ES">ES — S&amp;P 500</option>
+            <option value="CL">CL — Crude Oil</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Account Size</label>
+          <select id="inp-size">
+            <option value="25000">25K</option>
+            <option value="50000" selected>50K</option>
+            <option value="100000">100K</option>
+            <option value="150000">150K</option>
+            <option value="200000">200K</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Fee Paid ($)</label>
+          <input type="number" id="inp-fee" value="175" min="0" step="1">
+        </div>
+        <div class="fg wide">
+          <label>Notes</label>
+          <input type="text" id="inp-notes" placeholder="optional…">
+        </div>
+        <button class="btn-add" onclick="addAccount()">+ Add Account</button>
+      </div>
     </div>
   </div>
-</div>
+
+  <!-- ACCOUNTS -->
+  <div class="section">
+    <div class="shead"><div class="snum">02</div><div class="stitle">Accounts</div></div>
+    <div class="acct-grid" id="acct-grid">
+      <div class="empty">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="section">
+    <div class="shead"><div class="snum">03</div><div class="stitle">Visual Analytics</div></div>
+    <div class="charts">
+      <div class="chart-card full">
+        <div class="cc-top"><span class="ct">Cumulative P&amp;L Over Time</span><span class="cv" id="cv-pnl">—</span></div>
+        <canvas id="ch-pnl"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="cc-top"><span class="ct">Account Status</span><span class="cv" id="cv-status">—</span></div>
+        <canvas id="ch-status"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="cc-top"><span class="ct">Payouts by Firm</span><span class="cv" id="cv-firm">—</span></div>
+        <canvas id="ch-firm"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYSIS -->
+  <div class="section">
+    <div class="shead"><div class="snum">04</div><div class="stitle">Deep Analysis</div></div>
+    <div class="an-grid">
+      <div class="an-card"><h4><em></em>Fee Breakdown</h4><div id="an-fees"></div></div>
+      <div class="an-card"><h4><em></em>Payout Log</h4><div id="an-payouts" class="scroll"></div></div>
+      <div class="an-card"><h4><em></em>Performance by Firm</h4><div id="an-firm"></div></div>
+      <div class="an-card"><h4><em></em>Goal Outlook</h4><div id="an-goal"></div></div>
+    </div>
+  </div>
 
 </div>
 
 <footer>
-  <div class="container">
-    <div class="footer-inner">
-      <div class="footer-left">LUCIDFLEX 50K · MLL $2,000 · 90/10 SPLIT · 5 PAYOUTS TO LUCIDFIVE</div>
-      <div class="footer-right">
-        <span>MAX PAYOUT/REQUEST $2,000</span>
+  <div class="wrap">
+    <div class="foot">
+      <div class="fl">LUCIDFLEX 50K · MLL $2,000 · 90/10 SPLIT · 5 PAYOUTS TO LUCIDFIVE</div>
+      <div class="fr">
+        <span>MAX PAYOUT $2,000</span>
         <span>MIN PAYOUT $500</span>
-        <span>5 PROFITABLE DAYS/CYCLE</span>
+        <span>5 PROFITABLE DAYS / CYCLE</span>
       </div>
     </div>
   </div>
 </footer>
 
 <script>
-const GOAL = 20000;
-let accounts = [];
-let charts = {};
+const GOAL=20000;
+const ARC_LEN=540; // ~ 2*pi*86
+let accounts=[];
+let charts={};
+const DEFAULT_FIRMS=['Lucid','MFF','Topstep','Apex','TradeDay'];
 
-function loadData(){
-  try{const d=localStorage.getItem('lucid_v2');if(d)accounts=JSON.parse(d)}catch(e){}
+/* ===================================================================
+   SUPABASE CONFIG  — the only two lines you ever need to edit.
+   These are safe to keep in this file (publishable key = browser-safe).
+   NEVER paste your postgres:// connection string or sb_secret_ key here.
+   =================================================================== */
+const SUPABASE_URL='https://lyarffqfbqgrbngahpcu.supabase.co';
+const SUPABASE_KEY='sb_publishable_hHh5P7UlWC0-ifBmk3R0yQ_GUBlDfRu';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+/* ---------- SHARED DATABASE (everyone on the link sees the same rows) ---------- */
+async function loadData(){
+  const {data,error}=await sb.from('accounts').select('*').order('created_at',{ascending:true});
+  if(error) throw error;
+  accounts=(data||[]).map(r=>({
+    id:Number(r.id),
+    date:r.date||todayStr(),
+    firm:r.firm||'',
+    inst:r.inst||'',
+    size:Number(r.size)||0,
+    fee:Number(r.fee)||0,
+    notes:r.notes||'',
+    status:r.status||'eval',
+    payouts:Array.isArray(r.payouts)?r.payouts:[]
+  }));
 }
-function saveData(){
-  try{localStorage.setItem('lucid_v2',JSON.stringify(accounts))}catch(e){}
+function populateFirms(){
+  const sel=document.getElementById('inp-firm');
+  accounts.forEach(a=>{
+    const f=a.firm;
+    if(f&&!DEFAULT_FIRMS.includes(f)&&![...sel.options].some(o=>o.value===f)){
+      sel.insertBefore(new Option(f,f),sel.options[sel.options.length-1]);
+    }
+  });
+}
+function setSync(t,ok){
+  document.getElementById('sync-txt').textContent=t;
+  document.querySelector('.dot').style.background=ok?'var(--pos)':'var(--gold)';
+}
+/* auto refresh from realtime/poll — skips while the user is typing */
+async function autoRefresh(){
+  const ae=document.activeElement;
+  if(ae&&(ae.tagName==='INPUT'||ae.tagName==='SELECT'))return;
+  try{await loadData();populateFirms();render();setSync('Live · synced',true);}catch(e){}
 }
 
-function addAccount(){
-  const firmSel=document.getElementById('inp-firm').value;
-  const firm=firmSel==='__new__'?(document.getElementById('inp-newfirm').value.trim()||'Unknown'):firmSel;
-  if(firmSel==='__new__'&&firm&&firm!=='Unknown'){
-    const sel=document.getElementById('inp-firm');
-    const exists=[...sel.options].some(o=>o.value===firm);
-    if(!exists){
-      const opt=new Option(firm,firm);
-      sel.insertBefore(opt,sel.options[sel.options.length-1]);
-      saveFirms();
+/* ---------- DATE STEPPER ---------- */
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function stepDate(d){
+  const inp=document.getElementById('inp-date');
+  const base=inp.value?new Date(inp.value+'T00:00:00'):new Date();
+  base.setDate(base.getDate()+d);
+  inp.value=base.toISOString().slice(0,10);
+}
+
+/* ---------- CRUD (writes to Supabase, then re-reads the shared table) ---------- */
+async function addAccount(){
+  const sel=document.getElementById('inp-firm');
+  let firm=sel.value;
+  if(firm==='__new__'){
+    firm=document.getElementById('inp-newfirm').value.trim()||'Unknown';
+    if(firm!=='Unknown'&&![...sel.options].some(o=>o.value===firm)){
+      sel.insertBefore(new Option(firm,firm),sel.options[sel.options.length-1]);
     }
     sel.value=firm;
-    document.getElementById('new-firm-group').style.display='none';
+    document.getElementById('newfirm-fg').style.display='none';
     document.getElementById('inp-newfirm').value='';
   }
-  const inst=document.getElementById('inp-inst').value;
-  const size=parseInt(document.getElementById('inp-size').value);
-  const fee=parseFloat(document.getElementById('inp-fee').value)||175;
-  const erisk=parseFloat(document.getElementById('inp-erisk').value)||750;
-  const frisk=parseFloat(document.getElementById('inp-frisk').value)||400;
-  const notes=document.getElementById('inp-notes').value.trim();
-  accounts.push({
+  const row={
     id:Date.now(),
-    date:new Date().toISOString().slice(0,10),
-    firm,inst,size,fee,erisk,frisk,notes,
+    date:document.getElementById('inp-date').value||todayStr(),
+    firm,
+    inst:document.getElementById('inp-inst').value,
+    size:parseInt(document.getElementById('inp-size').value),
+    fee:parseFloat(document.getElementById('inp-fee').value)||0,
+    notes:document.getElementById('inp-notes').value.trim(),
     status:'eval',
     payouts:[]
-  });
-  saveData();render();
+  };
+  setSync('Saving…',false);
+  const {error}=await sb.from('accounts').insert(row);
+  if(error){setSync('Save failed',false);alert('Could not save: '+error.message);return;}
+  document.getElementById('inp-notes').value='';
+  await loadData();populateFirms();render();setSync('Live · synced',true);
 }
-
-function saveFirms(){
-  const sel=document.getElementById('inp-firm');
-  const firms=[...sel.options].map(o=>o.value).filter(v=>v!=='__new__');
-  try{localStorage.setItem('prop_firms',JSON.stringify(firms))}catch(e){}
+async function setStatus(id,s){
+  setSync('Saving…',false);
+  const {error}=await sb.from('accounts').update({status:s}).eq('id',id);
+  if(error){setSync('Save failed',false);return;}
+  await loadData();render();setSync('Live · synced',true);
 }
-
-function loadFirms(){
-  try{
-    const d=localStorage.getItem('prop_firms');
-    if(d){
-      const firms=JSON.parse(d);
-      const sel=document.getElementById('inp-firm');
-      const defaults=['Lucid','MFF','Topstep','Apex','TradeDay'];
-      firms.forEach(f=>{
-        if(!defaults.includes(f)){
-          const opt=new Option(f,f);
-          sel.insertBefore(opt,sel.options[sel.options.length-1]);
-        }
-      });
-    }
-  }catch(e){}
-}
-
-document.getElementById('inp-firm').addEventListener('change',function(){
-  document.getElementById('new-firm-group').style.display=this.value==='__new__'?'flex':'none';
-});
-
-function setStatus(id,s){
+async function addPayout(id){
+  const inp=document.getElementById('pin-'+id);
+  const v=parseFloat(inp.value);
+  if(!v||v<=0)return;
   const a=accounts.find(x=>x.id===id);
-  if(a){a.status=s;saveData();render();}
+  if(!a)return;
+  const payouts=[...a.payouts,{amt:v,date:todayStr()}];
+  const status=a.status==='blown'?'blown':'paid';
+  inp.value='';
+  setSync('Saving…',false);
+  const {error}=await sb.from('accounts').update({payouts,status}).eq('id',id);
+  if(error){setSync('Save failed',false);return;}
+  await loadData();render();setSync('Live · synced',true);
+}
+async function deleteAccount(id){
+  if(!confirm('Delete this account permanently? This removes it for everyone on the link.'))return;
+  setSync('Saving…',false);
+  const {error}=await sb.from('accounts').delete().eq('id',id);
+  if(error){setSync('Save failed',false);return;}
+  await loadData();render();setSync('Live · synced',true);
 }
 
-function addPayout(id){
-  const inp=document.getElementById('pinp-'+id);
-  const val=parseFloat(inp.value);
-  if(!val||val<=0)return;
-  const a=accounts.find(x=>x.id===id);
-  if(a){
-    a.payouts.push({amt:val,date:new Date().toISOString().slice(0,10)});
-    if(a.status!=='blown')a.status='paid';
-    inp.value='';
-    saveData();render();
-  }
+/* ---------- HELPERS ---------- */
+function money(n){return '$'+Math.round(Math.abs(n)).toLocaleString();}
+function signed(n){return (n>=0?'+':'-')+money(n);}
+
+function stats(){
+  const total=accounts.length;
+  const blown=accounts.filter(a=>a.status==='blown').length;
+  const funded=accounts.filter(a=>a.status==='funded').length;
+  const paid=accounts.filter(a=>a.status==='paid').length;
+  const ev=accounts.filter(a=>a.status==='eval').length;
+  const totalFees=accounts.reduce((s,a)=>s+a.fee,0);
+  const allPay=accounts.flatMap(a=>a.payouts);
+  const totalPay=allPay.reduce((s,p)=>s+p.amt,0);
+  const net=totalPay-totalFees;
+  const roi=totalFees>0?net/totalFees*100:null;
+  const passed=funded+paid;
+  const passRate=total>0?passed/total*100:null;
+  const blowRate=total>0?blown/total*100:null;
+  const cycles=allPay.length;
+  const avgPay=cycles>0?totalPay/cycles:null;
+  const cpw=passed>0?totalFees/passed:null;
+  return {total,blown,funded,paid,ev,totalFees,totalPay,net,roi,passed,passRate,blowRate,cycles,avgPay,cpw,allPay};
 }
 
-function deleteAccount(id){
-  if(!confirm('Delete this account?'))return;
-  accounts=accounts.filter(x=>x.id!==id);
-  saveData();render();
-}
-
-function fmt(n,prefix='$'){
-  if(n===undefined||n===null)return '—';
-  const abs=Math.abs(n);
-  const s=abs>=1000?prefix+Math.round(abs).toLocaleString():prefix+Math.round(abs).toString();
-  return n<0?'-'+s:(n>0&&prefix==='$'?'+'+s:s);
-}
-function fmtp(n){return n===null?'—':Math.round(n)+'%'}
-
-function render(){
-  renderDate();
-  renderKPIs();
-  renderTable();
-  renderCharts();
-  renderAnalysis();
-}
+/* ---------- RENDER ---------- */
+function render(){renderDate();renderHero();renderKPIs();renderPipe();renderCards();renderCharts();renderAnalysis();}
 
 function renderDate(){
   document.getElementById('live-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'}).toUpperCase();
 }
 
-function computeStats(){
-  const total=accounts.length;
-  const blown=accounts.filter(a=>a.status==='blown').length;
-  const funded=accounts.filter(a=>a.status==='funded').length;
-  const paid=accounts.filter(a=>a.status==='paid').length;
-  const eval_=accounts.filter(a=>a.status==='eval').length;
-  const totalFees=accounts.reduce((s,a)=>s+a.fee,0);
-  const allPayouts=accounts.flatMap(a=>a.payouts);
-  const totalPayouts=allPayouts.reduce((s,p)=>s+p.amt,0);
-  const net=totalPayouts-totalFees;
-  const roi=totalFees>0?((net/totalFees)*100):null;
-  const passed=funded+paid;
-  const passRate=total>0?(passed/total*100):null;
-  const blowRate=total>0?(blown/total*100):null;
-  const totalCycles=allPayouts.length;
-  const avgPayout=totalCycles>0?(totalPayouts/totalCycles):null;
-  const cpw=passed>0?(totalFees/passed):null;
-  return {total,blown,funded,paid,eval_,totalFees,totalPayouts,net,roi,passRate,blowRate,passed,totalCycles,avgPayout,cpw};
+function renderHero(){
+  const s=stats();
+  const pct=Math.min(s.totalPay/GOAL*100,100);
+  document.getElementById('gauge-arc').style.strokeDashoffset=ARC_LEN-(ARC_LEN*pct/100);
+  document.getElementById('g-pct').textContent=Math.round(pct)+'%';
+  document.getElementById('g-val').textContent=money(s.totalPay)+' collected';
+
+  const netEl=document.getElementById('h-net');
+  netEl.textContent=s.net===0?'$0':signed(s.net);
+  netEl.className='bv '+(s.net>=0?'pos':'neg');
+  document.getElementById('h-net-sub').textContent=money(s.totalPay)+' payouts − '+money(s.totalFees)+' fees';
+
+  document.getElementById('h-pay').textContent=money(s.totalPay);
+  document.getElementById('h-pay-sub').textContent=s.cycles+' payout cycle'+(s.cycles===1?'':'s');
+
+  document.getElementById('h-pass').textContent=s.passRate!==null?Math.round(s.passRate)+'%':'—';
+  document.getElementById('h-pass-bar').style.width=(s.passRate||0)+'%';
+
+  const roiEl=document.getElementById('h-roi');
+  roiEl.textContent=s.roi!==null?(s.roi>=0?'+':'')+Math.round(s.roi)+'%':'—';
+  roiEl.style.color=s.roi===null?'var(--violet)':(s.roi>=0?'var(--pos)':'var(--neg)');
+  document.getElementById('h-roi-sub').textContent='on '+money(s.totalFees)+' in fees';
 }
 
 function renderKPIs(){
-  const s=computeStats();
+  const s=stats();
   document.getElementById('k-total').textContent=s.total;
-  document.getElementById('k-eval').textContent=s.eval_;
+  document.getElementById('k-eval').textContent=s.ev;
   document.getElementById('k-funded').textContent=s.funded;
   document.getElementById('k-paid').textContent=s.paid;
   document.getElementById('k-blown').textContent=s.blown;
-  document.getElementById('k-fees').textContent='$'+s.totalFees.toLocaleString();
-  document.getElementById('k-payouts').textContent='$'+Math.round(s.totalPayouts).toLocaleString();
-  const netEl=document.getElementById('k-net');
-  netEl.textContent=(s.net>=0?'+':'')+'$'+Math.round(Math.abs(s.net)).toLocaleString();
-  netEl.className='kpi-val '+(s.net>=0?'green':'red');
-  const roiEl=document.getElementById('k-roi');
-  roiEl.textContent=s.roi!==null?(s.roi>=0?'+':'')+Math.round(s.roi)+'%':'—';
-  roiEl.className='kpi-val '+(s.roi===null?'':(s.roi>=0?'green':'red'));
-  document.getElementById('k-pass').textContent=s.passRate!==null?Math.round(s.passRate)+'%':'—';
-
-  const pct=Math.min(s.totalPayouts/GOAL*100,100);
-  document.getElementById('goal-fill').style.width=pct+'%';
-  document.getElementById('goal-pct').textContent=Math.round(pct)+'%';
+  document.getElementById('k-fees').textContent=money(s.totalFees);
 }
 
-function renderTable(){
-  const tbody=document.getElementById('tbl-body');
-  if(accounts.length===0){
-    tbody.innerHTML='<tr class="empty-row"><td colspan="14">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</td></tr>';
-    return;
+function renderPipe(){
+  const s=stats();
+  document.getElementById('pipe-total').textContent=s.total+' account'+(s.total===1?'':'s');
+  const segs=[['ev',s.ev,'var(--info)'],['funded',s.funded,'var(--gold)'],['paid',s.paid,'var(--pos)'],['blown',s.blown,'var(--neg)']];
+  const bar=document.getElementById('pipe-bar');
+  if(s.total===0){bar.innerHTML='<div class="pipe-seg" style="flex:1;background:var(--panel2);color:var(--dim)">No accounts yet</div>';}
+  else{
+    bar.innerHTML=segs.filter(x=>x[1]>0).map(([k,v,c])=>`<div class="pipe-seg" style="flex:${v};background:${c}" title="${v}">${v}</div>`).join('');
   }
-  tbody.innerHTML=accounts.map((a,i)=>{
-    const totalPayout=a.payouts.reduce((s,p)=>s+p.amt,0);
-    const net=totalPayout-a.fee;
-    const netCls=net>0?'net-pos':'net-neg';
-    return `<tr>
-      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${i+1}</td>
-      <td style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${a.date}</td>
-      <td><span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--accent2)">${a.firm||'—'}</span></td>
-      <td style="font-weight:700">${a.inst}</td>
-      <td style="font-family:var(--font-mono);font-size:11px">$${(a.size/1000).toFixed(0)}K</td>
-      <td style="font-family:var(--font-mono);font-size:11px">$${a.erisk}</td>
-      <td style="font-family:var(--font-mono);font-size:11px">$${a.frisk}</td>
-      <td style="font-family:var(--font-mono);font-size:11px;color:var(--red)">$${a.fee}</td>
-      <td>
-        <select class="status-sel" onchange="setStatus(${a.id},this.value)">
-          <option value="eval"${a.status==='eval'?' selected':''}>IN EVAL</option>
-          <option value="funded"${a.status==='funded'?' selected':''}>FUNDED</option>
-          <option value="paid"${a.status==='paid'?' selected':''}>PAID OUT</option>
-          <option value="blown"${a.status==='blown'?' selected':''}>BLOWN</option>
-        </select>
-      </td>
-      <td>
-        <div style="display:flex;align-items:center;gap:5px">
-          <input class="payout-inp" type="number" id="pinp-${a.id}" placeholder="$0" min="0">
-          <button class="btn-pay" onclick="addPayout(${a.id})">+ADD</button>
+  document.getElementById('lg-eval').textContent=s.ev;
+  document.getElementById('lg-funded').textContent=s.funded;
+  document.getElementById('lg-paid').textContent=s.paid;
+  document.getElementById('lg-blown').textContent=s.blown;
+}
+
+const STATUS_BADGE={eval:['b-eval','IN EVAL'],funded:['b-funded','FUNDED'],paid:['b-paid','PAID OUT'],blown:['b-blown','BLOWN']};
+
+function renderCards(){
+  const grid=document.getElementById('acct-grid');
+  if(accounts.length===0){grid.innerHTML='<div class="empty">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</div>';return;}
+  grid.innerHTML=accounts.map((a,i)=>{
+    const pay=a.payouts.reduce((s,p)=>s+p.amt,0);
+    const net=pay-a.fee;
+    const [bc,bt]=STATUS_BADGE[a.status]||STATUS_BADGE.eval;
+    const recover=Math.min(pay/(a.fee||1)*100,100);
+    return `<div class="acct" style="animation-delay:${i*0.03}s">
+      <div class="acct-top">
+        <div>
+          <div class="acct-firm">${a.firm||'—'}</div>
+          <div class="acct-meta"><span>${a.inst}</span> · <span>$${(a.size/1000).toFixed(0)}K</span> · ${a.date}</div>
         </div>
-        ${a.payouts.length>0?`<div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-top:3px">${a.payouts.length} payout${a.payouts.length>1?'s':''}</div>`:''}
-      </td>
-      <td style="font-family:var(--font-mono);font-size:12px;color:var(--green)">${totalPayout>0?'$'+Math.round(totalPayout).toLocaleString():'—'}</td>
-      <td><span class="${netCls}">${(net>=0?'+':'')+'$'+Math.round(Math.abs(net)).toLocaleString()}</span></td>
-      <td style="font-size:11px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.notes||'—'}</td>
-      <td><button class="btn-del" onclick="deleteAccount(${a.id})">DEL</button></td>
-    </tr>`;
+        <span class="badge ${bc}">${bt}</span>
+      </div>
+      <div class="acct-net">
+        <span class="nv ${net>=0?'pos':'neg'}">${net===0?'$0':signed(net)}</span>
+        <span class="nl">net p&amp;l</span>
+      </div>
+      <div class="acct-flow">
+        <div class="flow-row"><span class="fk">Fee <span class="fee">${money(a.fee)}</span></span><span class="fk">Payouts <span class="pay">${pay>0?money(pay):'$0'}</span></span></div>
+        <div class="flow-bar"><i style="width:${recover}%"></i></div>
+      </div>
+      ${a.notes?`<div class="paychip">📝 ${a.notes}</div>`:''}
+      <div class="acct-ctrl">
+        <div class="row">
+          <select class="sel" onchange="setStatus(${a.id},this.value)">
+            <option value="eval"${a.status==='eval'?' selected':''}>In Eval</option>
+            <option value="funded"${a.status==='funded'?' selected':''}>Funded</option>
+            <option value="paid"${a.status==='paid'?' selected':''}>Paid Out</option>
+            <option value="blown"${a.status==='blown'?' selected':''}>Blown</option>
+          </select>
+          <button class="bdel" onclick="deleteAccount(${a.id})">Delete</button>
+        </div>
+        <div class="row">
+          <input class="pin" type="number" id="pin-${a.id}" placeholder="Add payout $" min="0">
+          <button class="bp" onclick="addPayout(${a.id})">+ Pay</button>
+        </div>
+        ${a.payouts.length?`<div class="paychip">${a.payouts.length} payout${a.payouts.length>1?'s':''} recorded</div>`:''}
+      </div>
+    </div>`;
   }).join('');
 }
 
-function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function destroy(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+const TICK={color:'rgba(182,194,205,.55)',font:{size:11,family:'IBM Plex Mono'}};
+const GRID={color:'rgba(255,255,255,.045)'};
 
 function renderCharts(){
-  const s=computeStats();
-  const statusColors=['rgba(0,200,255,.8)','rgba(255,184,0,.8)','rgba(0,227,150,.8)','rgba(255,69,96,.8)'];
+  const s=stats();
+
+  // Cumulative P&L
+  destroy('pnl');
+  let pts=[{x:'Start',y:0}],cum=0;
+  [...accounts].sort((a,b)=>a.date.localeCompare(b.date)).forEach(a=>{
+    cum-=a.fee; pts.push({x:a.date,y:Math.round(cum)});
+    a.payouts.slice().sort((p,q)=>p.date.localeCompare(q.date)).forEach(p=>{cum+=p.amt;pts.push({x:p.date,y:Math.round(cum)});});
+  });
+  const col=cum>=0?'#3DDC8A':'#FF6B81';
+  charts['pnl']=new Chart(document.getElementById('ch-pnl'),{
+    type:'line',
+    data:{labels:pts.map(p=>p.x),datasets:[{data:pts.map(p=>p.y),borderColor:col,backgroundColor:ctx=>{const c=ctx.chart.ctx.createLinearGradient(0,0,0,210);c.addColorStop(0,cum>=0?'rgba(61,220,138,.22)':'rgba(255,107,129,.22)');c.addColorStop(1,'rgba(0,0,0,0)');return c;},borderWidth:2.5,fill:true,tension:.35,pointRadius:pts.length>14?0:3,pointBackgroundColor:col}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.raw>=0?' +$':' -$')+Math.abs(c.raw).toLocaleString()}}},scales:{x:{display:false},y:{grid:GRID,ticks:{...TICK,callback:v=>(v<0?'-$':'$')+Math.abs(v).toLocaleString()}}}}
+  });
+  document.getElementById('cv-pnl').textContent=(cum>=0?'+':'-')+money(cum);
 
   // Status donut
-  destroyChart('status');
-  const statusData=[s.eval_,s.funded,s.paid,s.blown];
-  const hasStatus=statusData.some(v=>v>0);
-  charts['status']=new Chart(document.getElementById('chart-status'),{
+  destroy('status');
+  const sd=[s.ev,s.funded,s.paid,s.blown];
+  const has=sd.some(v=>v>0);
+  charts['status']=new Chart(document.getElementById('ch-status'),{
     type:'doughnut',
-    data:{labels:['In Eval','Funded','Paid Out','Blown'],datasets:[{data:hasStatus?statusData:[1,1,1,1],backgroundColor:hasStatus?statusColors:['rgba(30,45,53,.4)','rgba(30,45,53,.3)','rgba(30,45,53,.2)','rgba(30,45,53,.1)'],borderWidth:0,hoverOffset:4}]},
-    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'rgba(180,200,210,.7)',font:{size:11,family:'Space Mono'},padding:12,boxWidth:10}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw}`}}},cutout:'65%'}
+    data:{labels:['In Eval','Funded','Paid Out','Blown'],datasets:[{data:has?sd:[1,1,1,1],backgroundColor:has?['#5BB0FF','#F5B544','#3DDC8A','#FF6B81']:['#1E2833','#1A222C','#161E28','#131A22'],borderColor:'#11171F',borderWidth:3,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{position:'bottom',labels:{color:'rgba(182,194,205,.8)',font:{size:11,family:'IBM Plex Mono'},padding:14,boxWidth:10,usePointStyle:true,pointStyle:'circle'}},tooltip:{enabled:has}}}
   });
-  document.getElementById('lbl-status').textContent=s.total>0?s.total+' total':'—';
+  document.getElementById('cv-status').textContent=s.total+' total';
 
-  // Cumulative P&L line
-  destroyChart('pnl');
-  let cumulData=[{x:'Start',y:0}];
-  let cum=0;
-  const sorted=[...accounts].sort((a,b)=>a.date.localeCompare(b.date));
-  sorted.forEach(a=>{
-    cum-=a.fee;
-    cumulData.push({x:a.date+' fee',y:Math.round(cum)});
-    a.payouts.forEach(p=>{cum+=p.amt;cumulData.push({x:p.date,y:Math.round(cum)});});
-  });
-  const pnlColor=cum>=0?'rgba(0,227,150,1)':'rgba(255,69,96,1)';
-  charts['pnl']=new Chart(document.getElementById('chart-pnl'),{
-    type:'line',
-    data:{labels:cumulData.map(d=>d.x),datasets:[{data:cumulData.map(d=>d.y),borderColor:pnlColor,backgroundColor:cum>=0?'rgba(0,227,150,.06)':'rgba(255,69,96,.06)',borderWidth:2,fill:true,tension:.3,pointRadius:3,pointBackgroundColor:pnlColor}]},
-    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' $'+ctx.raw.toLocaleString()}}},scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(180,200,210,.6)',font:{size:10,family:'Space Mono'},callback:v=>'$'+(v>=0?'':'-')+Math.abs(v).toLocaleString()}}}}
-  });
-  document.getElementById('lbl-pnl').textContent=cum>=0?'+$'+Math.round(cum).toLocaleString():'-$'+Math.round(Math.abs(cum)).toLocaleString();
-
-  // Payout bar per account
-  destroyChart('paybar');
-  const payLabels=accounts.map((a,i)=>`Acct ${i+1} (${a.inst})`);
-  const payVals=accounts.map(a=>Math.round(a.payouts.reduce((s,p)=>s+p.amt,0)));
-  const feeVals=accounts.map(a=>a.fee);
-  charts['paybar']=new Chart(document.getElementById('chart-paybar'),{
+  // Payouts by firm
+  destroy('firm');
+  const byFirm={};
+  accounts.forEach(a=>{const k=a.firm||'Unknown';byFirm[k]=(byFirm[k]||0)+a.payouts.reduce((s,p)=>s+p.amt,0);});
+  const fk=Object.keys(byFirm),fv=fk.map(k=>Math.round(byFirm[k]));
+  charts['firm']=new Chart(document.getElementById('ch-firm'),{
     type:'bar',
-    data:{
-      labels:payLabels.length?payLabels:['No accounts'],
-      datasets:[
-        {label:'Payouts',data:payVals.length?payVals:[0],backgroundColor:'rgba(0,227,150,.7)',borderRadius:4,borderSkipped:false},
-        {label:'Fee paid',data:feeVals.length?feeVals:[0],backgroundColor:'rgba(255,69,96,.5)',borderRadius:4,borderSkipped:false}
-      ]
-    },
-    options:{responsive:true,plugins:{legend:{labels:{color:'rgba(180,200,210,.7)',font:{size:10,family:'Space Mono'},boxWidth:10}}},scales:{x:{grid:{display:false},ticks:{color:'rgba(180,200,210,.5)',font:{size:10,family:'Space Mono'}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(180,200,210,.5)',font:{size:10,family:'Space Mono'},callback:v=>'$'+v}}}}
+    data:{labels:fk.length?fk:['No data'],datasets:[{data:fv.length?fv:[0],backgroundColor:'#F5B544',borderRadius:7,borderSkipped:false,maxBarThickness:46}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' $'+c.raw.toLocaleString()}}},scales:{x:{grid:{display:false},ticks:TICK},y:{grid:GRID,ticks:{...TICK,callback:v=>'$'+v.toLocaleString()}}}}
   });
-
-  // Fees vs Payouts
-  destroyChart('fvp');
-  const tf=s.totalFees||0; const tp=s.totalPayouts||0;
-  charts['fvp']=new Chart(document.getElementById('chart-fvp'),{
-    type:'bar',
-    data:{labels:['Fees Spent','Payouts Received'],datasets:[{data:[Math.round(tf),Math.round(tp)],backgroundColor:['rgba(255,69,96,.7)','rgba(0,227,150,.7)'],borderRadius:6,borderSkipped:false}]},
-    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'rgba(180,200,210,.6)',font:{size:10,family:'Space Mono'}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'rgba(180,200,210,.5)',font:{size:10,family:'Space Mono'},callback:v=>'$'+v.toLocaleString()}}}}
-  });
-
-  // Pass/blow donut
-  destroyChart('rate');
-  const hasPB=s.passed>0||s.blown>0;
-  charts['rate']=new Chart(document.getElementById('chart-rate'),{
-    type:'doughnut',
-    data:{labels:['Passed','Blown','In Progress'],datasets:[{data:hasPB?[s.passed,s.blown,s.eval_+s.funded]:[1,1,1],backgroundColor:hasPB?['rgba(0,227,150,.8)','rgba(255,69,96,.8)','rgba(255,184,0,.6)']:['rgba(30,45,53,.4)','rgba(30,45,53,.3)','rgba(30,45,53,.2)'],borderWidth:0}]},
-    options:{responsive:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'rgba(180,200,210,.7)',font:{size:10,family:'Space Mono'},padding:10,boxWidth:8}}}}
-  });
-
-  // Goal doughnut
-  destroyChart('goal');
-  const gpct=Math.min(s.totalPayouts/GOAL*100,100);
-  charts['goal']=new Chart(document.getElementById('chart-goal'),{
-    type:'doughnut',
-    data:{labels:['Achieved','Remaining'],datasets:[{data:[Math.round(gpct),Math.round(100-gpct)],backgroundColor:['rgba(0,255,178,.8)','rgba(30,45,53,.6)'],borderWidth:0}]},
-    options:{responsive:true,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.label===('Achieved')?` $${Math.round(s.totalPayouts).toLocaleString()} / $20,000`:` $${Math.round(GOAL-s.totalPayouts).toLocaleString()} remaining`}}}}
-  });
+  document.getElementById('cv-firm').textContent=money(s.totalPay);
 }
 
 function renderAnalysis(){
-  const s=computeStats();
+  const s=stats();
 
-  // Stats row
-  document.getElementById('s-pass').textContent=s.passRate!==null?Math.round(s.passRate)+'%':'—';
-  document.getElementById('s-blow').textContent=s.blowRate!==null?Math.round(s.blowRate)+'%':'—';
-  document.getElementById('s-avgpay').textContent=s.avgPayout!==null?'$'+Math.round(s.avgPayout).toLocaleString():'—';
-  document.getElementById('s-cycles').textContent=s.totalCycles;
-  document.getElementById('s-cpw').textContent=s.cpw!==null?'$'+Math.round(s.cpw).toLocaleString():'—';
-  const rem=GOAL-s.totalPayouts;
-  document.getElementById('s-rem').textContent=rem>0?'$'+Math.round(rem).toLocaleString():'GOAL REACHED 🎯';
-
-  // Fees breakdown
-  const feeEl=document.getElementById('analysis-fees');
+  // Fees
   const byStatus={eval:0,funded:0,paid:0,blown:0};
   accounts.forEach(a=>byStatus[a.status]+=a.fee);
-  feeEl.innerHTML=[
-    ['Total fees paid','$'+Math.round(s.totalFees).toLocaleString(),'a'],
-    ['Fees on blown accounts','$'+Math.round(byStatus.blown).toLocaleString(),'r'],
-    ['Fees on passed accounts','$'+Math.round(byStatus.funded+byStatus.paid).toLocaleString(),'g'],
-    ['Fees still in eval','$'+Math.round(byStatus.eval).toLocaleString(),'a'],
-    ['Fee recovery rate',s.totalFees>0?Math.round(s.totalPayouts/s.totalFees*100)+'%':'—',s.totalPayouts>=s.totalFees?'g':'r'],
-  ].map(([k,v,c])=>`<div class="analysis-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
+  document.getElementById('an-fees').innerHTML=[
+    ['Total fees paid',money(s.totalFees),'a'],
+    ['Fees on blown accounts',money(byStatus.blown),'r'],
+    ['Fees on passed accounts',money(byStatus.funded+byStatus.paid),'g'],
+    ['Fees still in eval',money(byStatus.eval),'a'],
+    ['Fee recovery rate',s.totalFees>0?Math.round(s.totalPay/s.totalFees*100)+'%':'—',s.totalPay>=s.totalFees?'g':'r'],
+    ['Cost per passed account',s.cpw!==null?money(s.cpw):'—','a'],
+  ].map(([k,v,c])=>`<div class="an-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
 
   // Payout log
-  const payEl=document.getElementById('analysis-payouts');
-  const allPay=accounts.flatMap((a,i)=>a.payouts.map(p=>({acct:i+1,inst:a.inst,amt:p.amt,date:p.date})));
-  if(allPay.length===0){
-    payEl.innerHTML='<div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:.5rem 0">No payouts yet</div>';
-  } else {
-    payEl.innerHTML=allPay.sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`
-      <div class="analysis-row">
-        <span class="ak">Acct ${p.acct} (${p.inst}) · ${p.date}</span>
-        <span class="av g">+$${Math.round(p.amt).toLocaleString()}</span>
-      </div>`).join('');
-  }
+  const log=accounts.flatMap((a,i)=>a.payouts.map(p=>({firm:a.firm,inst:a.inst,amt:p.amt,date:p.date})));
+  document.getElementById('an-payouts').innerHTML=log.length?
+    log.sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`<div class="an-row"><span class="ak">${p.firm} · ${p.inst} · ${p.date}</span><span class="av g">+${money(p.amt)}</span></div>`).join('')
+    :'<div class="an-empty">No payouts recorded yet</div>';
 
-  // By instrument
-  const instEl=document.getElementById('analysis-inst');
-  const byFirm={};
-  accounts.forEach(a=>{
-    const k=a.firm||'Unknown';
-    if(!byFirm[k])byFirm[k]={count:0,fees:0,payouts:0,passed:0,blown:0};
-    byFirm[k].count++;
-    byFirm[k].fees+=a.fee;
-    byFirm[k].payouts+=a.payouts.reduce((s,p)=>s+p.amt,0);
-    if(a.status==='paid'||a.status==='funded')byFirm[k].passed++;
-    if(a.status==='blown')byFirm[k].blown++;
-  });
-  instEl.innerHTML=Object.entries(byFirm).length?Object.entries(byFirm).map(([firm,d])=>`
-    <div class="analysis-row"><span class="ak">${firm} · ${d.count} acct${d.count>1?'s':''}</span><span class="av a">${d.passed} passed / ${d.blown} blown</span></div>
-    <div class="analysis-row"><span class="ak">${firm} net P&L</span><span class="av ${d.payouts-d.fees>=0?'g':'r'}">${d.payouts-d.fees>=0?'+':''}$${Math.round(d.payouts-d.fees).toLocaleString()}</span></div>
-  `).join(''):
-  '<div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);padding:.5rem 0">No data yet</div>';
+  // By firm
+  const bf={};
+  accounts.forEach(a=>{const k=a.firm||'Unknown';if(!bf[k])bf[k]={n:0,fees:0,pay:0,pass:0,blown:0};bf[k].n++;bf[k].fees+=a.fee;bf[k].pay+=a.payouts.reduce((s,p)=>s+p.amt,0);if(a.status==='paid'||a.status==='funded')bf[k].pass++;if(a.status==='blown')bf[k].blown++;});
+  const fe=Object.entries(bf);
+  document.getElementById('an-firm').innerHTML=fe.length?fe.map(([f,d])=>{
+    const net=d.pay-d.fees;
+    return `<div class="an-row"><span class="ak"><b style="font-family:var(--display)">${f}</b> · ${d.n} acct${d.n>1?'s':''} · ${d.pass}✓ ${d.blown}✗</span><span class="av ${net>=0?'g':'r'}">${net===0?'$0':signed(net)}</span></div>`;
+  }).join(''):'<div class="an-empty">No data yet</div>';
 
-  // Risk vs return
-  const riskEl=document.getElementById('analysis-risk');
-  const totalEvalRisk=accounts.reduce((s,a)=>s+a.erisk,0);
-  const totalFundRisk=accounts.reduce((s,a)=>s+a.frisk,0);
-  riskEl.innerHTML=[
-    ['Avg eval risk/trade',accounts.length?'$'+Math.round(totalEvalRisk/accounts.length):'—','a'],
-    ['Avg funded risk/trade',accounts.length?'$'+Math.round(totalFundRisk/accounts.length):'—','a'],
-    ['Return on risk',s.totalPayouts>0&&s.totalFees>0?Math.round((s.net/s.totalFees)*100)+'%':'—',s.net>=0?'g':'r'],
-    ['Expected MLL breach at eval risk',accounts.length?Math.round(2000/(totalEvalRisk/accounts.length))+' consecutive losses':'—','r'],
-    ['Expected MLL breach at fund risk',accounts.length?Math.round(2000/(totalFundRisk/accounts.length))+' consecutive losses':'—','a'],
-  ].map(([k,v,c])=>`<div class="analysis-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
+  // Goal outlook
+  const rem=GOAL-s.totalPay;
+  document.getElementById('an-goal').innerHTML=[
+    ['Collected so far',money(s.totalPay),'g'],
+    ['Remaining to $20K',rem>0?money(rem):'GOAL REACHED 🎯',rem>0?'a':'g'],
+    ['Avg payout size',s.avgPay!==null?money(s.avgPay):'—','a'],
+    ['Payouts needed at avg',s.avgPay&&rem>0?Math.ceil(rem/s.avgPay)+' more':(rem<=0?'0':'—'),'a'],
+    ['Net position',s.net===0?'$0':signed(s.net),s.net>=0?'g':'r'],
+  ].map(([k,v,c])=>`<div class="an-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
 }
 
-loadData();
-loadFirms();
-render();
-setInterval(renderDate,60000);
+/* ---------- INIT ---------- */
+document.getElementById('inp-firm').addEventListener('change',function(){
+  document.getElementById('newfirm-fg').style.display=this.value==='__new__'?'flex':'none';
+});
+
+function showSetupError(msg){
+  const l=document.getElementById('loader');
+  l.classList.remove('hide');
+  l.innerHTML='<div style="max-width:460px;text-align:center;padding:26px;font-family:var(--mono);color:var(--ink2);line-height:1.6">'+
+    '<div style="font-size:30px;margin-bottom:10px">⚠️</div>'+
+    '<div style="color:var(--ink);font-size:14px;margin-bottom:8px">Couldn\u2019t reach the database</div>'+
+    '<div style="font-size:12px;color:var(--dim);margin-bottom:18px">'+msg+'<br>Make sure you ran the setup SQL in Supabase and that the URL + publishable key are correct.</div>'+
+    '<button onclick="location.reload()" style="background:var(--gold);color:#1a1205;border:none;border-radius:9px;padding:10px 20px;font-family:var(--display);font-weight:700;cursor:pointer">Retry</button></div>';
+}
+
+(async function init(){
+  document.getElementById('inp-date').value=todayStr();
+  setSync('Connecting…',false);
+  try{
+    await loadData();
+    populateFirms();
+    render();
+    setSync('Live · synced',true);
+    document.getElementById('loader').classList.add('hide');
+  }catch(e){
+    showSetupError(e.message||'Connection error');
+    return;
+  }
+  setInterval(renderDate,60000);
+
+  // live multi-user sync: realtime push + 30s poll fallback
+  try{
+    sb.channel('rt-accounts')
+      .on('postgres_changes',{event:'*',schema:'public',table:'accounts'},autoRefresh)
+      .subscribe();
+  }catch(e){}
+  setInterval(autoRefresh,30000);
+})();
 </script>
 </body>
 </html>
