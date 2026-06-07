@@ -129,9 +129,10 @@ header{padding:clamp(20px,3vw,30px) 0 18px;display:flex;align-items:center;justi
 .fg label{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
 .fg select,.fg input{background:var(--bg2);border:1px solid var(--line2);border-radius:10px;color:var(--ink);font-family:var(--body);font-weight:500;font-size:14px;padding:11px 13px;height:44px;outline:none;transition:border-color .2s,box-shadow .2s;width:100%}
 .fg select:focus,.fg input:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold-soft)}
-.datebox{display:flex;align-items:center;gap:6px}
-.datebox input{flex:1}
-.stepbtn{flex:none;width:44px;height:44px;border-radius:10px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink2);font-size:18px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+.fg.date-fg{flex:1 1 260px;min-width:260px}
+.datebox{display:flex;align-items:center;gap:8px}
+.datebox input{flex:1;min-width:0}
+.stepbtn{flex:none;width:36px;height:44px;border-radius:10px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink2);font-size:16px;cursor:pointer;display:grid;place-items:center;transition:.2s}
 .stepbtn:hover{border-color:var(--gold);color:var(--gold)}
 .btn-add{flex:1 1 100%;background:linear-gradient(145deg,var(--gold),#E89A1E);color:#1a1205;font-family:var(--display);font-weight:700;font-size:15px;border:none;border-radius:11px;height:48px;cursor:pointer;letter-spacing:-.01em;transition:.2s;box-shadow:0 8px 22px rgba(245,181,68,.25)}
 .btn-add:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(245,181,68,.35)}
@@ -188,6 +189,7 @@ header{padding:clamp(20px,3vw,30px) 0 18px;display:flex;align-items:center;justi
 
 /* analysis */
 .an-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(min-width:1080px){.an-grid{grid-template-columns:1fr 1fr 1fr}}
 .an-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
 .an-card h4{font-family:var(--display);font-weight:700;font-size:.95rem;margin-bottom:12px;display:flex;align-items:center;gap:9px;letter-spacing:-.01em}
 .an-card h4 em{width:9px;height:9px;border-radius:3px;background:var(--gold);font-style:normal}
@@ -319,7 +321,7 @@ footer{margin-top:42px;border-top:1px solid var(--line);padding:22px 0 40px}
     <div class="shead"><div class="snum">01</div><div class="stitle">Add Challenge Account</div></div>
     <div class="add">
       <div class="add-grid">
-        <div class="fg">
+        <div class="fg date-fg">
           <label>Date Added</label>
           <div class="datebox">
             <button class="stepbtn" onclick="stepDate(-1)" title="Previous day">‹</button>
@@ -350,6 +352,16 @@ footer{margin-top:42px;border-top:1px solid var(--line);padding:22px 0 40px}
             <option value="GC+NQ">GC + NQ</option>
             <option value="ES">ES — S&amp;P 500</option>
             <option value="CL">CL — Crude Oil</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Split %</label>
+          <select id="inp-split">
+            <option value="70">70%</option>
+            <option value="80">80%</option>
+            <option value="90" selected>90%</option>
+            <option value="95">95%</option>
+            <option value="100">100%</option>
           </select>
         </div>
         <div class="fg">
@@ -410,6 +422,8 @@ footer{margin-top:42px;border-top:1px solid var(--line);padding:22px 0 40px}
       <div class="an-card"><h4><em></em>Payout Log</h4><div id="an-payouts" class="scroll"></div></div>
       <div class="an-card"><h4><em></em>Performance by Firm</h4><div id="an-firm"></div></div>
       <div class="an-card"><h4><em></em>Goal Outlook</h4><div id="an-goal"></div></div>
+      <div class="an-card"><h4><em></em>Split Analysis</h4><div id="an-split"></div></div>
+      <div class="an-card"><h4><em></em>Account Health</h4><div id="an-health"></div></div>
     </div>
   </div>
 
@@ -457,6 +471,7 @@ async function loadData(){
     fee:Number(r.fee)||0,
     notes:r.notes||'',
     status:r.status||'eval',
+    split:Number(r.split)||90,
     payouts:Array.isArray(r.payouts)?r.payouts:[]
   }));
 }
@@ -510,6 +525,7 @@ async function addAccount(){
     size:parseInt(document.getElementById('inp-size').value),
     fee:parseFloat(document.getElementById('inp-fee').value)||0,
     notes:document.getElementById('inp-notes').value.trim(),
+    split:parseInt(document.getElementById('inp-split').value)||90,
     status:'eval',
     payouts:[]
   };
@@ -531,7 +547,9 @@ async function addPayout(id){
   if(!v||v<=0)return;
   const a=accounts.find(x=>x.id===id);
   if(!a)return;
-  const payouts=[...a.payouts,{amt:v,date:todayStr()}];
+  const gross=v;
+  const net=Math.round(gross*(a.split||100)/100);
+  const payouts=[...a.payouts,{gross,amt:net,date:todayStr()}];
   const status=a.status==='blown'?'blown':'paid';
   inp.value='';
   setSync('Saving…',false);
@@ -559,7 +577,8 @@ function stats(){
   const ev=accounts.filter(a=>a.status==='eval').length;
   const totalFees=accounts.reduce((s,a)=>s+a.fee,0);
   const allPay=accounts.flatMap(a=>a.payouts);
-  const totalPay=allPay.reduce((s,p)=>s+p.amt,0);
+  const totalPay=allPay.reduce((s,p)=>s+p.amt,0);          // net (after split)
+  const totalGross=allPay.reduce((s,p)=>s+(p.gross??p.amt),0); // gross traded P&L
   const net=totalPay-totalFees;
   const roi=totalFees>0?net/totalFees*100:null;
   const passed=funded+paid;
@@ -567,8 +586,15 @@ function stats(){
   const blowRate=total>0?blown/total*100:null;
   const cycles=allPay.length;
   const avgPay=cycles>0?totalPay/cycles:null;
+  const avgGross=cycles>0?totalGross/cycles:null;
   const cpw=passed>0?totalFees/passed:null;
-  return {total,blown,funded,paid,ev,totalFees,totalPay,net,roi,passed,passRate,blowRate,cycles,avgPay,cpw,allPay};
+  const avgSplit=total>0?accounts.reduce((s,a)=>s+(a.split||100),0)/total:null;
+  const bestPay=allPay.length>0?Math.max(...allPay.map(p=>p.amt)):null;
+  const bestGross=allPay.length>0?Math.max(...allPay.map(p=>p.gross??p.amt)):null;
+  const inProfit=accounts.filter(a=>a.payouts.reduce((s,p)=>s+p.amt,0)>a.fee).length;
+  const splitDist={70:0,80:0,90:0,95:0,100:0};
+  accounts.forEach(a=>{ const s=a.split||100; splitDist[s]=(splitDist[s]||0)+1; });
+  return {total,blown,funded,paid,ev,totalFees,totalPay,totalGross,net,roi,passed,passRate,blowRate,cycles,avgPay,avgGross,cpw,avgSplit,bestPay,bestGross,inProfit,splitDist,allPay};
 }
 
 /* ---------- RENDER ---------- */
@@ -634,23 +660,33 @@ function renderCards(){
   if(accounts.length===0){grid.innerHTML='<div class="empty">NO ACCOUNTS YET — ADD YOUR FIRST CHALLENGE ABOVE</div>';return;}
   grid.innerHTML=accounts.map((a,i)=>{
     const pay=a.payouts.reduce((s,p)=>s+p.amt,0);
+    const gross=a.payouts.reduce((s,p)=>s+(p.gross??p.amt),0);
     const net=pay-a.fee;
     const [bc,bt]=STATUS_BADGE[a.status]||STATUS_BADGE.eval;
     const recover=Math.min(pay/(a.fee||1)*100,100);
+    const split=a.split||100;
+    const showGross=gross>0&&split<100;
     return `<div class="acct" style="animation-delay:${i*0.03}s">
       <div class="acct-top">
         <div>
           <div class="acct-firm">${a.firm||'—'}</div>
           <div class="acct-meta"><span>${a.inst}</span> · <span>$${(a.size/1000).toFixed(0)}K</span> · ${a.date}</div>
         </div>
-        <span class="badge ${bc}">${bt}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <span class="badge ${bc}">${bt}</span>
+          <span class="badge" style="background:rgba(167,139,250,.12);color:var(--violet)">${split}% split</span>
+        </div>
       </div>
       <div class="acct-net">
         <span class="nv ${net>=0?'pos':'neg'}">${net===0?'$0':signed(net)}</span>
         <span class="nl">net p&amp;l</span>
       </div>
       <div class="acct-flow">
-        <div class="flow-row"><span class="fk">Fee <span class="fee">${money(a.fee)}</span></span><span class="fk">Payouts <span class="pay">${pay>0?money(pay):'$0'}</span></span></div>
+        <div class="flow-row">
+          <span class="fk">Fee <span class="fee">${money(a.fee)}</span></span>
+          <span class="fk">Your cut <span class="pay">${pay>0?money(pay):'$0'}</span></span>
+        </div>
+        ${showGross?`<div class="flow-row" style="font-size:11px"><span class="fk">Gross P&L <span style="color:var(--dim)">${money(gross)}</span></span><span class="fk">After ${split}% split →</span></div>`:''}
         <div class="flow-bar"><i style="width:${recover}%"></i></div>
       </div>
       ${a.notes?`<div class="paychip">📝 ${a.notes}</div>`:''}
@@ -665,10 +701,10 @@ function renderCards(){
           <button class="bdel" onclick="deleteAccount(${a.id})">Delete</button>
         </div>
         <div class="row">
-          <input class="pin" type="number" id="pin-${a.id}" placeholder="Add payout $" min="0">
+          <input class="pin" type="number" id="pin-${a.id}" placeholder="Enter gross P&L $" min="0">
           <button class="bp" onclick="addPayout(${a.id})">+ Pay</button>
         </div>
-        ${a.payouts.length?`<div class="paychip">${a.payouts.length} payout${a.payouts.length>1?'s':''} recorded</div>`:''}
+        ${a.payouts.length?`<div class="paychip">${a.payouts.length} payout${a.payouts.length>1?'s':''} · ${split}% applied automatically</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -735,19 +771,31 @@ function renderAnalysis(){
     ['Cost per passed account',s.cpw!==null?money(s.cpw):'—','a'],
   ].map(([k,v,c])=>`<div class="an-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
 
-  // Payout log
-  const log=accounts.flatMap((a,i)=>a.payouts.map(p=>({firm:a.firm,inst:a.inst,amt:p.amt,date:p.date})));
+  // Payout log — show gross → net
+  const log=accounts.flatMap(a=>a.payouts.map(p=>({
+    firm:a.firm,inst:a.inst,split:a.split||100,
+    gross:p.gross??p.amt,amt:p.amt,date:p.date
+  })));
   document.getElementById('an-payouts').innerHTML=log.length?
-    log.sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`<div class="an-row"><span class="ak">${p.firm} · ${p.inst} · ${p.date}</span><span class="av g">+${money(p.amt)}</span></div>`).join('')
+    log.sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{
+      const hasGross=p.gross>p.amt;
+      return `<div class="an-row">
+        <span class="ak">${p.firm} · ${p.inst} · ${p.date}</span>
+        <span class="av g" style="text-align:right">
+          ${hasGross?`<span style="color:var(--dim);font-size:10px">${money(p.gross)} → </span>`:''}<span>+${money(p.amt)}</span>
+        </span>
+      </div>`;
+    }).join('')
     :'<div class="an-empty">No payouts recorded yet</div>';
 
   // By firm
   const bf={};
-  accounts.forEach(a=>{const k=a.firm||'Unknown';if(!bf[k])bf[k]={n:0,fees:0,pay:0,pass:0,blown:0};bf[k].n++;bf[k].fees+=a.fee;bf[k].pay+=a.payouts.reduce((s,p)=>s+p.amt,0);if(a.status==='paid'||a.status==='funded')bf[k].pass++;if(a.status==='blown')bf[k].blown++;});
+  accounts.forEach(a=>{const k=a.firm||'Unknown';if(!bf[k])bf[k]={n:0,fees:0,pay:0,gross:0,pass:0,blown:0};bf[k].n++;bf[k].fees+=a.fee;bf[k].pay+=a.payouts.reduce((s,p)=>s+p.amt,0);bf[k].gross+=a.payouts.reduce((s,p)=>s+(p.gross??p.amt),0);if(a.status==='paid'||a.status==='funded')bf[k].pass++;if(a.status==='blown')bf[k].blown++;});
   const fe=Object.entries(bf);
   document.getElementById('an-firm').innerHTML=fe.length?fe.map(([f,d])=>{
     const net=d.pay-d.fees;
-    return `<div class="an-row"><span class="ak"><b style="font-family:var(--display)">${f}</b> · ${d.n} acct${d.n>1?'s':''} · ${d.pass}✓ ${d.blown}✗</span><span class="av ${net>=0?'g':'r'}">${net===0?'$0':signed(net)}</span></div>`;
+    const roi=d.fees>0?Math.round(net/d.fees*100):null;
+    return `<div class="an-row"><span class="ak"><b style="font-family:var(--display)">${f}</b> · ${d.n} acct${d.n>1?'s':''} · ${d.pass}✓ ${d.blown}✗</span><span class="av ${net>=0?'g':'r'}">${net===0?'$0':signed(net)}${roi!==null?` <span style="font-size:10px;color:var(--dim)">(${roi}% ROI)</span>`:''}</span></div>`;
   }).join(''):'<div class="an-empty">No data yet</div>';
 
   // Goal outlook
@@ -755,9 +803,38 @@ function renderAnalysis(){
   document.getElementById('an-goal').innerHTML=[
     ['Collected so far',money(s.totalPay),'g'],
     ['Remaining to $20K',rem>0?money(rem):'GOAL REACHED 🎯',rem>0?'a':'g'],
-    ['Avg payout size',s.avgPay!==null?money(s.avgPay):'—','a'],
-    ['Payouts needed at avg',s.avgPay&&rem>0?Math.ceil(rem/s.avgPay)+' more':(rem<=0?'0':'—'),'a'],
+    ['Avg net payout',s.avgPay!==null?money(s.avgPay):'—','a'],
+    ['Avg gross P&L',s.avgGross!==null?money(s.avgGross):'—','a'],
+    ['Payouts needed at avg',s.avgPay&&rem>0?Math.ceil(rem/s.avgPay)+' more':(rem<=0?'Done 🎯':'—'),'a'],
     ['Net position',s.net===0?'$0':signed(s.net),s.net>=0?'g':'r'],
+  ].map(([k,v,c])=>`<div class="an-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
+
+  // Split analysis
+  const splitRows=Object.entries(s.splitDist).filter(([,n])=>n>0).map(([sp,n])=>{
+    const accs=accounts.filter(a=>(a.split||100)===Number(sp));
+    const totalNet=accs.reduce((s,a)=>s+a.payouts.reduce((t,p)=>t+p.amt,0),0);
+    const totalGross=accs.reduce((s,a)=>s+a.payouts.reduce((t,p)=>t+(p.gross??p.amt),0),0);
+    return `<div class="an-row">
+      <span class="ak">${sp}% split · ${n} acct${n>1?'s':''}</span>
+      <span class="av a">${totalGross>0?money(totalGross)+' → '+money(totalNet):'No payouts yet'}</span>
+    </div>`;
+  });
+  const splitKept=s.totalGross>0?Math.round(s.totalPay/s.totalGross*100):null;
+  document.getElementById('an-split').innerHTML=(splitRows.length?splitRows.join(''):'<div class="an-empty">No data yet</div>')+
+    (s.avgSplit!==null?`<div class="an-row"><span class="ak">Avg split across accounts</span><span class="av a">${Math.round(s.avgSplit)}%</span></div>`:'')+ 
+    (splitKept!==null?`<div class="an-row"><span class="ak">Effective keep rate (all)</span><span class="av g">${splitKept}% of gross</span></div>`:'');
+
+  // Account health
+  const inProfit=accounts.filter(a=>a.payouts.reduce((s,p)=>s+p.amt,0)>a.fee);
+  const atLoss=accounts.filter(a=>a.payouts.reduce((s,p)=>s+p.amt,0)<a.fee&&a.status!=='eval');
+  const longestRun=accounts.reduce((best,a)=>Math.max(best,a.payouts.length),0);
+  document.getElementById('an-health').innerHTML=[
+    ['Accounts in profit',inProfit.length+' of '+accounts.length,inProfit.length===accounts.length&&accounts.length>0?'g':'a'],
+    ['Accounts at a loss',atLoss.length,atLoss.length>0?'r':'g'],
+    ['Best single payout (net)',s.bestPay!==null?money(s.bestPay):'—','g'],
+    ['Best single gross P&L',s.bestGross!==null?money(s.bestGross):'—','a'],
+    ['Most payout cycles (1 acct)',longestRun>0?longestRun+' cycles':'—','a'],
+    ['Total gross P&L traded',s.totalGross>0?money(s.totalGross):'—','a'],
   ].map(([k,v,c])=>`<div class="an-row"><span class="ak">${k}</span><span class="av ${c}">${v}</span></div>`).join('');
 }
 
